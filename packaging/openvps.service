@@ -1,0 +1,54 @@
+[Unit]
+Description=OpenVPS management panel
+Documentation=https://github.com/delowardhushor/openvps
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=openvps
+Group=openvps
+Environment=NODE_ENV=production
+Environment=OPENVPS_CONFIG=/etc/openvps/config.json
+WorkingDirectory=/var/lib/openvps
+ExecStart=/opt/openvps/node/bin/node --disable-warning=ExperimentalWarning /opt/openvps/current/server/dist/main.js
+Restart=on-failure
+RestartSec=3
+# Configuration errors (exit 78) will not be fixed by restarting.
+RestartPreventExitStatus=78
+TimeoutStopSec=15
+
+# Resource guard rails: the panel should stay lightweight (NFR 7.2).
+MemoryHigh=200M
+MemoryMax=400M
+TasksMax=64
+
+# Sandboxing. Phase 1 needs no privileges: it reads /proc and queries systemd read-only.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/openvps
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

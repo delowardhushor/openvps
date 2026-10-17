@@ -1,0 +1,22 @@
+{
+  "listen": { "host": "0.0.0.0", "port": 7443 },
+  "tls": {
+    "enabled": true,
+    "certFile": "/etc/openvps/tls/cert.pem",
+    "keyFile": "/etc/openvps/tls/key.pem"
+  },
+  "trustProxy": false,
+  "dataDir": "/var/lib/openvps",
+  "logLevel": "info",
+  "session": { "idleMinutes": 120, "absoluteHours": 12 },
+  "auth": {
+    "minPasswordLength": 12,
+    "maxFailedAttempts": 5,
+    "lockoutMinutes": 15,
+    "ipAttemptsPerWindow": 20,
+    "ipWindowMinutes": 15
+  },
+  "metrics": { "intervalSeconds": 5, "historyMinutes": 60 },
+  "services": ["nginx", "ssh", "cron", "ufw"],
+  "audit": { "retentionDays": 180 }
+}

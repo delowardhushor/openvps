@@ -1,0 +1,22 @@
+{
+  "name": "@openvps/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "OpenVPS management API. Has no runtime npm dependencies; uses only Node.js built-ins.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "OPENVPS_DEV=1 node --disable-warning=ExperimentalWarning --watch src/main.ts",
+    "start": "node --disable-warning=ExperimentalWarning dist/main.js",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  }
+}

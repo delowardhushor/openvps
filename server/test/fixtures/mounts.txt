@@ -1,0 +1,8 @@
+/dev/vda1 / ext4 rw,relatime 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,size=402396k,mode=755 0 0
+/dev/vda15 /boot/efi vfat rw,relatime 0 0
+/dev/loop0 /snap/core22/1380 squashfs ro,nodev,relatime 0 0
+/dev/vdb1 /mnt/data\040disk xfs rw,relatime 0 0
+/dev/vda1 /var/lib/docker/bind ext4 rw,relatime 0 0
+overlay /var/lib/docker/overlay2/x/merged overlay rw 0 0

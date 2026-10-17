@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  scripts:
+    name: Shell scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: for f in scripts/*.sh packaging/*.sh; do bash -n "$f"; done
+      - name: ShellCheck
+        run: shellcheck -S warning scripts/*.sh packaging/*.sh
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  install:
+    name: Package and install smoke test
+    runs-on: ubuntu-24.04
+    needs: [test, scripts]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Build package
+        run: bash scripts/package-release.sh
+      - name: Install from package
+        run: sudo bash scripts/install.sh --package release/openvps-*.tar.gz --yes
+      - name: Verify
+        run: |
+          sudo openvps status
+          curl -fsk https://127.0.0.1:7443/api/health
+          test "$(curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:7443/api/system/overview)" = 401
+          sudo openvps setup-token >/dev/null
+      - name: Reinstall-upgrade with rollback path exercised
+        run: sudo openvps upgrade --package release/openvps-*.tar.gz --reinstall --yes
+      - name: Uninstall
+        run: |
+          sudo openvps uninstall --purge --yes --no-backup
+          test ! -e /opt/openvps
+      - name: Service logs on failure
+        if: failure()
+        run: sudo journalctl -u openvps -n 200 --no-pager || true

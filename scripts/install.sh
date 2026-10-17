@@ -349,19 +349,37 @@ server_ips() {
   hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9a-fA-F:.]+$' | grep -v '^fe80' | head -n 6
 }
 
+make_cert() { # make_cert <subjectAltName> ; prints OpenSSL's error output on failure
+  { openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -sha256 -days 825 \
+    -subj "/CN=OpenVPS/O=OpenVPS self-signed" -addext "subjectAltName=$1" \
+    -addext "keyUsage=digitalSignature" -addext "extendedKeyUsage=serverAuth" \
+    -keyout "$ETC/tls/key.pem" -out "$ETC/tls/cert.pem" >/dev/null; } 2>&1
+}
+
 write_tls() {
   if [[ -f "$ETC/tls/cert.pem" && -f "$ETC/tls/key.pem" ]]; then
     ok "Keeping existing TLS certificate"
     return
   fi
-  local san="DNS:localhost,IP:127.0.0.1" host ip
-  host="$(hostname -f 2>/dev/null || hostname)"
-  [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]] && san="DNS:${host},${san}"
-  while read -r ip; do [[ -n "$ip" ]] && san="${san},IP:${ip}"; done < <(server_ips)
-  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -sha256 -days 825 \
-    -subj "/CN=${host:-openvps}/O=OpenVPS self-signed" -addext "subjectAltName=${san}" \
-    -addext "keyUsage=digitalSignature" -addext "extendedKeyUsage=serverAuth" \
-    -keyout "$ETC/tls/key.pem" -out "$ETC/tls/cert.pem" >/dev/null 2>&1 || die "Could not create a TLS certificate"
+  # The CN is a fixed short name (it is limited to 64 characters); browsers match
+  # the subjectAltName entries, which list the hostname and the server's IPs.
+  local base="DNS:localhost,IP:127.0.0.1" san host ip err
+  san="$base"
+  host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
+  host="${host%.}"
+  if [[ "$host" =~ ^[A-Za-z0-9.-]{1,253}$ && "$host" != localhost ]]; then san="DNS:${host},${san}"; fi
+  while read -r ip; do
+    if [[ -n "$ip" ]]; then san="${san},IP:${ip}"; fi
+  done < <(server_ips)
+  if ! err="$(make_cert "$san")"; then
+    warn "Certificate with names '$san' failed; retrying with a minimal name list."
+    warn "OpenSSL said: $(tail -n 2 <<<"$err" | tr '\n' ' ')"
+    ip="$(server_ips | grep -v ':' | head -n1)"
+    if ! err="$(make_cert "${base}${ip:+,IP:${ip}}")"; then
+      printf '%s\n' "$err" >&2
+      die "Could not create a TLS certificate (OpenSSL error above). Please report it with the output of: openssl version; hostname -f; hostname -I"
+    fi
+  fi
   chown root:"$SVC_USER" "$ETC/tls/key.pem" "$ETC/tls/cert.pem"
   chmod 0640 "$ETC/tls/key.pem"
   chmod 0644 "$ETC/tls/cert.pem"

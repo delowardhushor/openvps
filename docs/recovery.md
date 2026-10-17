@@ -61,7 +61,7 @@ To regenerate the self-signed certificate:
 ```bash
 sudo rm /etc/openvps/tls/cert.pem /etc/openvps/tls/key.pem
 sudo openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -sha256 -days 825 \
-  -subj "/CN=$(hostname)" -addext "subjectAltName=DNS:$(hostname),IP:127.0.0.1" \
+  -subj "/CN=OpenVPS" -addext "subjectAltName=DNS:$(hostname),IP:127.0.0.1" \
   -keyout /etc/openvps/tls/key.pem -out /etc/openvps/tls/cert.pem
 sudo chown root:openvps /etc/openvps/tls/*.pem && sudo chmod 640 /etc/openvps/tls/key.pem
 sudo systemctl restart openvps

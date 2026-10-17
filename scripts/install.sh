@@ -316,7 +316,10 @@ EOF
 
 create_user_and_dirs() {
   if ! id -u "$SVC_USER" >/dev/null 2>&1; then
-    useradd --system --home-dir "$DATA" --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
+    local gopt=(--user-group)
+    # Reuse a leftover group of the same name instead of failing.
+    if getent group "$SVC_USER" >/dev/null; then gopt=(--gid "$SVC_USER"); fi
+    useradd --system "${gopt[@]}" --home-dir "$DATA" --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
     CREATED_USER=1
     ok "Created system user '$SVC_USER'"
   fi
@@ -433,6 +436,8 @@ main() {
 
   WORK="$(mktemp -d)"
   trap on_exit EXIT
+  # Never fail silently: name the command that failed.
+  trap 'warn "Command failed (line $LINENO): $BASH_COMMAND"' ERR
 
   obtain_package
   info "Installing OpenVPS $PKG_VERSION"

@@ -187,12 +187,12 @@ install_system_files() {
 }
 
 wait_healthy() { # wait_healthy <expected version or ""> ; uses $PORT and config TLS
-  local scheme=https url body i
+  local scheme=https url body
   if [[ -f "$ETC/config.json" ]] && grep -Eq '"enabled"[[:space:]]*:[[:space:]]*false' "$ETC/config.json"; then scheme=http; fi
   local port
   port="$(sed -n 's/.*"port"[[:space:]]*:[[:space:]]*\([0-9]\{1,5\}\).*/\1/p' "$ETC/config.json" 2>/dev/null | head -n1)"
   url="${scheme}://127.0.0.1:${port:-$PORT}/api/health"
-  for i in $(seq 1 30); do
+  for _ in $(seq 1 30); do
     if body="$(curl -fsk --max-time 2 "$url" 2>/dev/null)"; then
       if [[ -z "${1:-}" ]] || grep -q "\"version\":\"$1\"" <<<"$body"; then
         return 0

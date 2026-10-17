@@ -6,9 +6,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="$(node -p "require('./package.json').version")"
+# Read "version" without needing Node.js (so packaging works on a bare server).
+pkg_version() { sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$1" | head -n1; }
+VERSION="$(pkg_version package.json)"
+[[ -n "$VERSION" ]] || { echo "Could not read version from package.json" >&2; exit 1; }
 for p in server web; do
-  v="$(node -p "require('./$p/package.json').version")"
+  v="$(pkg_version "$p/package.json")"
   [[ "$v" == "$VERSION" ]] || { echo "Version mismatch: $p/package.json is $v, root is $VERSION" >&2; exit 1; }
 done
 

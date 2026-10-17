@@ -13,6 +13,8 @@
 #   5. on any failure: restore the previous release AND the database snapshot
 # Configuration in /etc/openvps is never overwritten.
 
+# Options parsed here (OPENVPS_VERSION, PACKAGE, ASSUME_YES) are read by functions sourced from install.sh.
+# shellcheck disable=SC2034
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=install.sh

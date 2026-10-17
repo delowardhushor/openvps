@@ -13,7 +13,7 @@ if [[ -f "$SCRIPT_DIR/install.sh" ]]; then
   . "$SCRIPT_DIR/install.sh"
 else
   PREFIX=/opt/openvps ETC=/etc/openvps DATA=/var/lib/openvps UNIT=/etc/systemd/system/openvps.service
-  BIN=/usr/local/bin/openvps SVC_USER=openvps C_B='' C_G='' C_Y='' C_R='' C_0=''
+  BIN=/usr/local/bin/openvps SVC_USER=openvps C_B='' C_R='' C_0=''
   info() { echo "==> $*"; }
   ok() { echo " ✓ $*"; }
   warn() { echo " ! $*" >&2; }

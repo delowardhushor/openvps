@@ -16,8 +16,8 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 1 Foundation: installer, auth, dashboard | v0.1.0 | ✅ released |
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
-| 2b Git deployments | v0.4 (next) | not started |
-| 4 Backups (MongoDB, files, S3) | v0.5 | ✅ built (unreleased); encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
+| 2b Git deployments | next | not started |
+| 4 Backups (MongoDB, files, S3) | v0.4.0 | ✅ built, version bumped, release pending; encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
 
 Details: `docs/roadmap.md`, `CHANGELOG.md`.
@@ -173,7 +173,7 @@ real Nginx + Certbot + Pebble test CA).
   push because real-nginx suites ran as non-root; fixed by skipping them when not root. The
   maintainer may need to move the `v0.3.0` tag to the fix commit and confirm CI is green,
   including the new "Sites and certificates end-to-end" job (not yet seen passing on GitHub).
-- **Backups (v0.5) are implemented and committed (unreleased)**: agent engine
+- **Backups (v0.4.0) are implemented and committed (release pending; the failed v0.3.1 tag was superseded by v0.4.0)**: agent engine
   (`agent/backup*.ts`, `s3.ts`), panel store/service/routes, Backups UI, docs/backups.md,
   CHANGELOG "Unreleased", provision.sh creates `/var/backups/openvps`. Unit/API tests use real tar
   with fake mongodump/mongorestore and an in-memory S3.
@@ -192,7 +192,7 @@ real Nginx + Certbot + Pebble test CA).
   failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
   connection from the UI (API/agent accept per-source URIs; UI only uses the plan's), testing
   against real AWS S3/R2/B2 (only SeaweedFS is exercised).
-- **Next: v0.4 Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
+- **Next: Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,
   deployment history; also building React/static sites into their site folder. Deploys are
   triggered by a button only (no webhooks) — maintainer's decision.

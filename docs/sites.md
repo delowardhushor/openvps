@@ -70,7 +70,7 @@ with `Cache-Control: no-cache`, so visitors get the new version on their next vi
 fingerprinted assets (`app.3f9a1c.js`) are cached for 30 days. For a plain static website,
 assets are cached for one hour.
 
-Git deployments that build the site for you are coming in v0.4.
+Git deployments that build the site for you are coming in a later release.
 
 ## The panel on its own domain
 

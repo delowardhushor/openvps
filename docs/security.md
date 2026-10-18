@@ -98,7 +98,7 @@ domains that hand-made sites already serve. Generated sites deny dotfiles (`.env
 Certbot runs with a fixed argument list; the panel never passes command strings. When the panel
 is served through its own Nginx site, it trusts `X-Real-IP` only from loopback connections.
 
-**Backups (v0.5).** Plans and restore requests are validated twice. Folders must resolve (symlinks
+**Backups (v0.4).** Plans and restore requests are validated twice. Folders must resolve (symlinks
 included) to a real directory inside `backups.fileRoots`, and a restore re-checks the recorded
 path, so a backup cannot write outside the roots. Archives are made and extracted with fixed
 `tar` arguments, tar exclusions are limited to simple name patterns, and every artifact and every

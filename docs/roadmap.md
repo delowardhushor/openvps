@@ -18,7 +18,7 @@ environment variables, PM2 integration (list, start, stop, restart, reload, stat
 for both root's existing apps and apps run by the unprivileged `ovapps` user, and the privileged
 agent with a narrow, audited action set.
 
-**v0.4 (next)**: Git deployments with repository and branch, per-app deploy keys, dependency
+**Next**: Git deployments with repository and branch, per-app deploy keys, dependency
 install, validated build steps (including building React/static sites into their site folder),
 release directories, health check, automatic rollback and deployment history.
 
@@ -39,7 +39,7 @@ Later: adopting hand-made sites into OpenVPS, wildcard certificates (DNS-01), cu
 
 ## Phase 4: Backups and stability
 
-**v0.5 ✅ (backups):** scheduled folder and MongoDB backups, local and S3-compatible storage,
+**v0.4 ✅ (backups):** scheduled folder and MongoDB backups, local and S3-compatible storage,
 retention, integrity checks, guided restore. **Still to do in this phase:** client-side
 encryption of backups, backing up OpenVPS's own database and key, restore tests on clean VPS
 instances in CI, and the security review.

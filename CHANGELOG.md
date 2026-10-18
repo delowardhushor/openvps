@@ -7,6 +7,8 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.4.0] — Phase 4: Backups
+
 ### Added
 - **Backups page** (Phase 4). Backup plans copy app folders and MongoDB databases on a schedule
   (hourly, daily, weekly or on demand) to this server, to S3-compatible cloud storage, or both.
@@ -134,7 +136,8 @@ doesn't know about the new services; later upgrades run it automatically.
 - Versioned SQLite schema migrations.
 - Documentation, CI workflow, release workflow and issue templates.
 
-[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.4.0
 [0.2.1]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.1
 [0.2.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.0
 [0.1.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.1.0

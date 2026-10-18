@@ -109,7 +109,7 @@ Rules for future privileged features (Nginx, Certbot, backups):
 OpenVPS owns only files named `openvps-*`. Renewal is left to Certbot's timer so that
 certificates keep renewing even when OpenVPS is stopped or removed.
 
-## Backups (v0.5)
+## Backups (v0.4)
 
 ```
  panel (plans, schedule, history in SQLite)             agent (root)

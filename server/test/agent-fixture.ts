@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,4 +145,16 @@ function sitesFixture(dir: string, config: ReturnType<typeof loadConfig>) {
     isRunning: async () => true,
     renewalTimer: async () => 'certbot.timer',
   });
+}
+
+/**
+ * Whether the real nginx binary can check configs here. `nginx -t` binds the ports it
+ * listens on and opens its log files, so as a normal user (e.g. CI's test job) it fails on
+ * port 80. Those paths are covered as root by scripts/ci/sites-e2e.sh instead.
+ */
+export function realNginxSkip(): string | false {
+  const bin = '/usr/sbin/nginx';
+  if (!existsSync(bin)) return 'nginx not installed';
+  if (process.getuid?.() !== 0) return 'nginx -t needs root to bind port 80 (covered by scripts/ci/sites-e2e.sh)';
+  return false;
 }

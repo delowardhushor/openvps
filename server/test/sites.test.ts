@@ -11,9 +11,9 @@ import { parseSiteSpec, type SiteSpec } from '../src/agent/sites-spec.ts';
 import { SpecError } from '../src/agent/spec.ts';
 import { SitesManager } from '../src/agent/sites.ts';
 import { AgentError } from '../src/agent/pm2.ts';
+import { realNginxSkip } from './agent-fixture.ts';
 
 const NGINX = '/usr/sbin/nginx';
-const HAVE_NGINX = existsSync(NGINX);
 const FAKE_CERTBOT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-certbot.mjs');
 
 const USER_SITE = `server {
@@ -169,7 +169,7 @@ describe('nginx config rendering', () => {
   });
 });
 
-describe('sites with a real nginx binary', { skip: HAVE_NGINX ? false : 'nginx not installed' }, () => {
+describe('sites with a real nginx binary', { skip: realNginxSkip() }, () => {
   let dir: string;
   let m: SitesManager;
   let reloads = 0;

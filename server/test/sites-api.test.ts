@@ -1,16 +1,15 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Client, GOOD_PASSWORD, startTestServer, type TestServer } from './helpers.ts';
-import { startAgentFixture, type AgentFixture } from './agent-fixture.ts';
+import { realNginxSkip, startAgentFixture, type AgentFixture } from './agent-fixture.ts';
 import { clientIp } from '../src/app.ts';
 
-const HAVE_NGINX = existsSync('/usr/sbin/nginx');
 
-describe('sites API', { skip: HAVE_NGINX ? false : 'nginx not installed' }, () => {
+describe('sites API', { skip: realNginxSkip() }, () => {
   let fx: AgentFixture;
   let srv: TestServer;
   let c: Client;

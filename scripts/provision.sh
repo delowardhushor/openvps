@@ -21,6 +21,7 @@ APPS_USER=ovapps
 APPS_HOME=/var/lib/ovapps
 APPS_ROOT=/srv/apps
 AGENT_STATE=/var/lib/openvps-agent
+BACKUP_DIR=/var/backups/openvps
 PM2_DIR="$PREFIX/pm2"
 AGENT_UNIT=/etc/systemd/system/openvps-agent.service
 APPS_UNIT=/etc/systemd/system/openvps-apps.service
@@ -166,17 +167,30 @@ provision_sites() {
   fi
 }
 
+provision_backups() {
+  # Local backups hold database dumps and app files: root only.
+  install -d -m 0700 -o root -g root "$BACKUP_DIR"
+  command -v tar >/dev/null 2>&1 || warn "tar is not installed, so backups are unavailable. Install it with: sudo apt install tar"
+  if command -v mongodump >/dev/null 2>&1; then
+    ok "mongodump found: MongoDB backups are available"
+  else
+    warn "mongodump is not installed (only needed to back up MongoDB). See docs/backups.md for installing the MongoDB Database Tools."
+  fi
+  ok "Backups are stored in $BACKUP_DIR (root only)"
+}
+
 main_provision() {
   [[ $EUID -eq 0 ]] || die "Run as root: sudo openvps provision"
   [[ -d "$ETC" ]] || die "OpenVPS is not installed ($ETC is missing)."
-  info "Setting up applications and sites"
+  info "Setting up applications, sites and backups"
   provision_user
   HAVE_PM2=1
   provision_pm2 || HAVE_PM2=0
   detect_root_pm2
   provision_sites
+  provision_backups
   install_units
-  ok "Applications and sites are ready"
+  ok "Applications, sites and backups are ready"
 }
 
 main_provision "$@"

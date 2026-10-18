@@ -17,7 +17,7 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
 | 2b Git deployments | v0.4 (next) | not started |
-| 4 Backups (MongoDB, files, S3) | later | not started |
+| 4 Backups (MongoDB, files, S3) | v0.5 | ✅ built (unreleased); encryption, panel-DB backup and clean-VPS CI tests still open |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
 
 Details: `docs/roadmap.md`, `CHANGELOG.md`.
@@ -46,6 +46,12 @@ Details: `docs/roadmap.md`, `CHANGELOG.md`.
   failure; then reload. Certbot: `certonly --webroot -w /var/lib/openvps-agent/acme
   --cert-name openvps-<name> --deploy-hook "systemctl reload nginx"`, fixed args only.
   Renewal is left to Certbot's own timer.
+- **Backups**: the agent holds no credentials. MongoDB connection strings and S3 keys are sealed
+  in the panel DB and sent with each `backup.*` request; MongoDB gets its URI through a `0600`
+  `--config` file in the job's staging dir (never argv); errors are scrubbed. Backup jobs are
+  background jobs in the agent (one at a time, `busy` otherwise); the panel polls `backup.job`.
+  Local backups: `/var/backups/openvps` (root 0700). File sources/restores must resolve inside
+  `backups.fileRoots`. Retention only touches artifacts named after the plan.
 - Secrets: app env vars sealed with AES-256-GCM (`secretbox.ts`, key file `secret.key`),
   write-only in the UI/API, redacted in logs/audit (`redact.ts`).
 - Every mutating API call is audited (`audit.ts`, actions like `app.create`, `site.update`,
@@ -62,9 +68,10 @@ server/src/
   context.ts                         AppContext passed to routes (db, stores, agent client, ...)
   http/core.ts, http/static.ts       tiny router, HttpError, SPA static serving
   auth/                              scrypt passwords, sessions, rate limit, setup token, users
-  db/index.ts, db/migrations.ts      node:sqlite; forward-only numbered migrations (1 initial, 2 apps, 3 sites)
-  routes/system.ts|auth.ts|apps.ts|sites.ts   HTTP API (agentError() maps agent codes -> HTTP)
+  db/index.ts, db/migrations.ts      node:sqlite; forward-only numbered migrations (1 initial, 2 apps, 3 sites, 4 backups)
+  routes/system.ts|auth.ts|apps.ts|sites.ts|backups.ts   HTTP API (agentError() maps agent codes -> HTTP)
   apps-store.ts, sites-store.ts      SQLite records for apps (sealed env) and sites (spec JSON)
+  backups-store.ts, backups.ts       backup plans/destinations/run history; BackupService = job polling + scheduler
   metrics/, system/                  /proc metrics collector, systemd service status
   cli.ts                             `openvps` local CLI (reset-password, unlock, setup-token, audit, backup-db...)
   agent.ts                           agent entry + buildAgent()/buildSites() (paths, systemd/nginx control)
@@ -77,20 +84,24 @@ server/src/
   agent/nginx-render.ts              renders openvps-<name>.conf (+ openvps-00-shared.conf map)
   agent/sites.ts                     SitesManager: status, certificates, apply/remove with undo, checks, issue
   agent/exec.ts                      runTool (execFile, no shell, PATH incl. /snap/bin)
-server/test/                         node:test suites; agent-fixture.ts (fake pm2 + temp nginx tree + fake certbot)
+  agent/backup-spec.ts               backup model, schedule maths (nextRun), manifest, all validation (panel+agent)
+  agent/backup.ts                    BackupManager: jobs, tar/mongodump, artifacts+sidecar manifest, retention, restore, verify
+  agent/s3.ts                        SigV4 S3 client on node:http(s) (multipart, list, head, get, delete)
+server/test/                         node:test suites; agent-fixture.ts (fake pm2 + temp nginx tree + fake certbot + fake mongodump/restore); fake-s3.ts (in-memory S3)
 web/src/                             React (Vite) SPA, no UI library; plain CSS in styles.css (light/dark tokens)
-  api.ts (typed client), router.ts, format.ts, components/, pages/
+  api.ts (typed client), router.ts, format.ts, components/ (BackupBits, PlanForm, ...), pages/ (BackupsPages)
 scripts/install.sh|upgrade.sh|uninstall.sh|provision.sh   bash, shellcheck-clean (-S warning)
 scripts/package-release.sh           builds release/openvps-<ver>.tar.gz (+ bundled PM2) and .sha256
 scripts/ci/apps-e2e.sh, sites-e2e.sh real-systemd end-to-end tests run on GitHub runners
 packaging/                           systemd units, openvps CLI wrapper, config.example.json
-docs/                                installation, applications, sites, configuration, upgrading,
+docs/                                installation, applications, sites, backups, configuration, upgrading,
                                      uninstalling, recovery, architecture, security, development, roadmap
 ```
 
 On the server: `/opt/openvps/releases/<ver>` + `current` symlink (atomic switch),
 `/opt/openvps/node` (private Node), `/etc/openvps/config.json` (root:openvps 0640),
-`/var/lib/openvps` (DB, backups), `/var/lib/openvps-agent` (state, app specs, `acme/`),
+`/var/lib/openvps` (DB, DB snapshots), `/var/lib/openvps-agent` (state, app specs, `acme/`),
+`/var/backups/openvps` (local backups, root 0700),
 `/usr/local/bin/openvps`.
 
 ## Commands
@@ -105,6 +116,9 @@ npm run dev:web            # Vite dev server
 bash scripts/package-release.sh
 shellcheck -S warning scripts/*.sh scripts/ci/*.sh packaging/*.sh
 ```
+
+Known: on macOS, 6 pre-existing tests (agent.test.ts, apps-api.test.ts) fail because of `/var` vs
+`/private/var` realpaths; they pass on Linux CI. Backup tests need `tar` (present on macOS and Linux).
 
 Tests that use the real `nginx` binary skip unless running as root (`nginx -t` binds port 80);
 `realNginxSkip()` in `server/test/agent-fixture.ts`. CI covers them in `sites-e2e.sh` (root,
@@ -159,10 +173,21 @@ real Nginx + Certbot + Pebble test CA).
   push because real-nginx suites ran as non-root; fixed by skipping them when not root. The
   maintainer may need to move the `v0.3.0` tag to the fix commit and confirm CI is green,
   including the new "Sites and certificates end-to-end" job (not yet seen passing on GitHub).
+- **Backups (v0.5) are implemented but uncommitted/unreleased** (this session): agent engine
+  (`agent/backup*.ts`, `s3.ts`), panel store/service/routes, Backups UI, docs/backups.md,
+  CHANGELOG "Unreleased", provision.sh creates `/var/backups/openvps`. Tested with fakes
+  (tar is real; mongodump/mongorestore and S3 are fakes) and manually in a browser against the dev
+  stack. **Not yet verified:** against a real S3 provider, real MongoDB tools, on a real VPS under
+  systemd (`ProtectSystem=full`), and no CI end-to-end job yet (idea: MinIO + mongodb-database-tools
+  in a `backups-e2e.sh`). Version bump (to 0.5.0 in 4 places) left to the maintainer at release.
+- Backup follow-ups not done: client-side encryption, a dashboard warning when the last backup
+  failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
+  connection from the UI (API/agent accept per-source URIs; UI only uses the plan's).
 - **Next: v0.4 Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,
   deployment history; also building React/static sites into their site folder. Deploys are
   triggered by a button only (no webhooks) — maintainer's decision.
 - Decisions on record: existing root PM2 apps stay under root (control-only); existing Nginx
   sites read-only (adoption later); static files come from a folder on the server; panel can
-  be served on its own domain.
+  be served on its own domain; backups use an S3-compatible client written in-house (no SDK) and
+  are not encrypted by OpenVPS yet.

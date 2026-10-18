@@ -50,8 +50,12 @@ A complete example is in `/opt/openvps/current/packaging/config.example.json`.
 | `sites.acmeRoot` | `/var/lib/openvps-agent/acme` | Folder served at `/.well-known/acme-challenge/`. |
 | `sites.acmeServer`, `sites.acmeCaBundle` | `null` | A different ACME directory URL and CA bundle, e.g. Let's Encrypt staging or a test CA. |
 | `sites.dnsServers` | `null` | DNS servers for the pre-flight check (`null` = the system resolver). |
+| `backups.dir` | `/var/backups/openvps` | Where local backups are kept (root only). Put it on another disk if you can. |
+| `backups.fileRoots` | `["/srv/apps","/var/www"]` | Folders that may be backed up and restored into (system and OpenVPS data directories are refused). |
+| `backups.scheduler` | `true` | Start scheduled backups from the panel. `false` = plans only run when you click. |
+| `backups.tarBin`, `backups.mongodumpBin`, `backups.mongorestoreBin` | `null` | Tool paths; `null` = look in `/usr/bin`, `/usr/local/bin` (and `/snap/bin`). |
 
-The agent reads the same file. After changing `agent.*`, `apps.*` or `sites.*`, run
+The agent reads the same file. After changing `agent.*`, `apps.*`, `sites.*` or `backups.*`, run
 `sudo systemctl restart openvps-agent openvps`.
 
 ## Environment variables
@@ -76,7 +80,8 @@ These override the file and are mostly for development and containers:
 | `/var/lib/openvps/openvps.db` | `openvps 0600` | SQLite database (accounts, sessions, settings, activity) |
 | `/var/lib/openvps/backups/` | `openvps 0750` | Pre-upgrade database snapshots |
 | `/var/lib/openvps/setup-token` | `openvps 0600` | Exists only until setup is completed |
-| `/var/lib/openvps/secret.key` | `openvps 0600` | Key that encrypts app environment variables. **Back it up with the database.** |
+| `/var/lib/openvps/secret.key` | `openvps 0600` | Key that encrypts app environment variables, storage keys and MongoDB connection strings. **Back it up with the database.** |
+| `/var/backups/openvps/` | `root 0700` | Local backups made by the Backups page (see [backups](backups.md)) |
 | `/etc/openvps/agent.json` | `root:openvps 0640` | Written by `openvps provision` (detected root PM2) |
 | `/run/openvps-agent/agent.sock` | `root:openvps 0660` | Agent socket (directory `0750`) |
 | `/var/lib/openvps-agent/apps/` | `root:ovapps 0750` | Generated PM2 definitions of your apps (contain env values) |

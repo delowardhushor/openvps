@@ -72,6 +72,12 @@ sudo systemctl restart openvps
 `openvps upgrade` rolls back automatically. If the server was interrupted mid-upgrade
 (power loss, for example), follow the manual rollback in [upgrading](upgrading.md#manual-rollback).
 
+## Recover from losing the server
+
+Backups of your apps and MongoDB are described in [backups](backups.md), including
+[restoring on a new server](backups.md#restoring-on-a-new-server). OpenVPS's own state is the
+database plus `secret.key` (below): keep `openvps backup-db` copies off the server too.
+
 ## Back up and restore the database
 
 The database holds accounts, sessions, settings and the activity log.

@@ -12,6 +12,8 @@ import { AgentClient } from './agent-client.ts';
 import { AppsStore } from './apps-store.ts';
 import { SitesStore } from './sites-store.ts';
 import { SecretBox } from './secretbox.ts';
+import { BackupsStore } from './backups-store.ts';
+import { BackupService } from './backups.ts';
 import { mkdirSync } from 'node:fs';
 
 export interface BootstrapOptions {
@@ -35,11 +37,14 @@ export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Pr
   if (m.applied.length) log.info('database migrated', { from: m.from, to: m.to });
 
   const a = config.auth;
+  const box = secrets(config.dataDir);
+  const audit = new Audit(db);
+  const agent = opts.agent ?? new AgentClient(config.agent.socket);
   return {
     config,
     db,
     log,
-    audit: new Audit(db),
+    audit,
     users: new Users(db),
     sessions: new Sessions(db, {
       idleMs: config.session.idleMinutes * 60_000,
@@ -50,9 +55,10 @@ export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Pr
     metrics: new MetricsCollector({ ...config.metrics, sources: opts.metricsSources }),
     host: await hostInfo(opts.metricsSources),
     run: opts.run ?? runAllowed,
-    agent: opts.agent ?? new AgentClient(config.agent.socket),
-    apps: new AppsStore(db, secrets(config.dataDir)),
+    agent,
+    apps: new AppsStore(db, box),
     sites: new SitesStore(db),
+    backups: new BackupService({ agent, audit, log, store: new BackupsStore(db, box) }),
     startedAt: Date.now(),
   };
 }

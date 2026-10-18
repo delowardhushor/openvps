@@ -75,5 +75,16 @@
     "acmeServer": null,
     "acmeCaBundle": null,
     "dnsServers": null
+  },
+  "backups": {
+    "dir": "/var/backups/openvps",
+    "fileRoots": [
+      "/srv/apps",
+      "/var/www"
+    ],
+    "tarBin": null,
+    "mongodumpBin": null,
+    "mongorestoreBin": null,
+    "scheduler": true
   }
 }

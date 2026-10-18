@@ -29,6 +29,12 @@ const STATUS_BY_CODE: Record<string, number> = {
   nginx_broken: 422,
   nginx_test_failed: 422,
   certbot_failed: 422,
+  busy: 409,
+  tool_missing: 422,
+  integrity: 422,
+  bad_manifest: 422,
+  verify_failed: 422,
+  s3_failed: 502,
 };
 
 /** Translate agent failures into API errors the UI can show. */

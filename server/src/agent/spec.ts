@@ -1,4 +1,15 @@
 import { DOMAIN, SITE_NAME, parseEmail, parseSiteSpec, type SiteSpec } from './sites-spec.ts';
+import {
+  PLAN_NAME,
+  parseArtifactRef,
+  parseJobSpec,
+  parseRestoreSpec,
+  parseS3Access,
+  type ArtifactRef,
+  type BackupJobSpec,
+  type RestoreSpec,
+  type S3Access,
+} from './backup-spec.ts';
 
 /**
  * Shared definitions for the panel <-> agent protocol and the validation of
@@ -29,7 +40,16 @@ export type AgentRequest =
   | { action: 'site.config'; params: { spec: SiteSpec } }
   | { action: 'site.check'; params: { name: string; domains: string[] } }
   | { action: 'cert.issue'; params: { spec: SiteSpec; email: string | null } }
-  | { action: 'site.states'; params: { specs: SiteSpec[] } };
+  | { action: 'site.states'; params: { specs: SiteSpec[] } }
+  | { action: 'backup.status'; params?: Record<string, never> }
+  | { action: 'backup.run'; params: { job: BackupJobSpec } }
+  | { action: 'backup.job'; params: { id: string } }
+  | { action: 'backup.list'; params: { plan: string | null; s3: S3Access | null } }
+  | { action: 'backup.inspect'; params: { ref: ArtifactRef; s3: S3Access | null } }
+  | { action: 'backup.restore'; params: { restore: RestoreSpec } }
+  | { action: 'backup.verify'; params: { ref: ArtifactRef; s3: S3Access | null; deep: boolean } }
+  | { action: 'backup.delete'; params: { ref: ArtifactRef; s3: S3Access | null } }
+  | { action: 'backup.s3test'; params: { s3: S3Access } };
 
 export type AgentAction = AgentRequest['action'];
 export const AGENT_ACTIONS: readonly AgentAction[] = [
@@ -47,6 +67,15 @@ export const AGENT_ACTIONS: readonly AgentAction[] = [
   'site.check',
   'cert.issue',
   'site.states',
+  'backup.status',
+  'backup.run',
+  'backup.job',
+  'backup.list',
+  'backup.inspect',
+  'backup.restore',
+  'backup.verify',
+  'backup.delete',
+  'backup.s3test',
 ];
 
 export type AgentResponse<T = unknown> =
@@ -289,5 +318,27 @@ export function parseRequest(input: unknown): AgentRequest {
       if (specs.length > 200) throw new SpecError('specs', 'Too many sites.');
       return { action: 'site.states', params: { specs: specs.map((s) => parseSiteSpec(s)) } };
     }
+    case 'backup.status':
+      return { action: 'backup.status' };
+    case 'backup.run':
+      return { action: 'backup.run', params: { job: parseJobSpec(p.job) } };
+    case 'backup.job': {
+      if (typeof p.id !== 'string' || !/^[0-9a-f]{16}$/.test(p.id)) throw new SpecError('id', 'Invalid task id.');
+      return { action: 'backup.job', params: { id: p.id } };
+    }
+    case 'backup.list': {
+      if (p.plan !== null && p.plan !== undefined && (typeof p.plan !== 'string' || !PLAN_NAME.test(p.plan))) throw new SpecError('plan', 'Invalid plan name.');
+      return { action: 'backup.list', params: { plan: (p.plan as string | null | undefined) ?? null, s3: p.s3 ? parseS3Access('s3', p.s3) : null } };
+    }
+    case 'backup.inspect':
+      return { action: 'backup.inspect', params: { ref: parseArtifactRef(p.ref), s3: p.s3 ? parseS3Access('s3', p.s3) : null } };
+    case 'backup.restore':
+      return { action: 'backup.restore', params: { restore: parseRestoreSpec(p.restore) } };
+    case 'backup.verify':
+      return { action: 'backup.verify', params: { ref: parseArtifactRef(p.ref), s3: p.s3 ? parseS3Access('s3', p.s3) : null, deep: p.deep === true } };
+    case 'backup.delete':
+      return { action: 'backup.delete', params: { ref: parseArtifactRef(p.ref), s3: p.s3 ? parseS3Access('s3', p.s3) : null } };
+    case 'backup.s3test':
+      return { action: 'backup.s3test', params: { s3: parseS3Access('s3', p.s3) } };
   }
 }

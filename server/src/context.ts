@@ -10,6 +10,7 @@ import type { Runner } from './system/exec.ts';
 import type { AgentClient } from './agent-client.ts';
 import type { AppsStore } from './apps-store.ts';
 import type { SitesStore } from './sites-store.ts';
+import type { BackupService } from './backups.ts';
 
 /** Shared services handed to route modules. */
 export interface AppContext {
@@ -27,5 +28,6 @@ export interface AppContext {
   agent: AgentClient;
   apps: AppsStore;
   sites: SitesStore;
+  backups: BackupService;
   startedAt: number;
 }

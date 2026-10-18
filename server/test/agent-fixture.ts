@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +21,10 @@ export interface AgentFixture {
   appsPm2Home: string;
   server: Server;
   client: AgentClient;
+  /** Where local backups are written. */
+  backupsDir: string;
+  /** Calls made to the fake mongodump / mongorestore. */
+  mongoCalls(): Array<{ tool: string; args: string[]; cfg: string; archive?: string }>;
   close(): Promise<void>;
 }
 
@@ -56,6 +60,16 @@ export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?:
   writeFileSync(join(hello, 'dist', 'server.js'), 'console.log("hi")');
   writeFileSync(join(hello, 'package.json'), JSON.stringify({ name: 'hello', scripts: { start: 'node dist/server.js' } }));
 
+  // Fake MongoDB tools; the agent runs tools with a minimal PATH, so they call node by absolute path.
+  const mongoLog = join(dir, 'mongo-calls.log');
+  const wrap = (name: string) => {
+    const file = join(dir, `bin-${name}`);
+    writeFileSync(file, `#!/bin/sh\nFAKE_MONGO_LOG="${mongoLog}" exec "${process.execPath}" "${join(dirname(FAKE_PM2), `fake-${name}.mjs`)}" "$@"\n`);
+    chmodSync(file, 0o755);
+    return file;
+  };
+  const backupsDir = join(dir, 'backups');
+
   const socket = join(dir, 'run', 'agent.sock');
   const config = loadConfig(
     { OPENVPS_DEV: '1' },
@@ -74,6 +88,10 @@ export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?:
       },
     },
   );
+  config.backups.dir = backupsDir;
+  config.backups.fileRoots = [appsRoot];
+  config.backups.mongodumpBin = wrap('mongodump');
+  config.backups.mongorestoreBin = wrap('mongorestore');
   let deps = buildAgent(config, silentLogger);
   if (opts.sites) deps = { ...deps, sites: sitesFixture(dir, config) };
   if (opts.buildSites) deps = { ...deps, sites: opts.buildSites(config) };
@@ -86,6 +104,8 @@ export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?:
     appsPm2Home,
     server,
     client: new AgentClient(socket),
+    backupsDir,
+    mongoCalls: () => (existsSync(mongoLog) ? readFileSync(mongoLog, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []),
     close: () => new Promise((r) => server.close(() => r())),
   };
 }

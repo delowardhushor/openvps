@@ -109,6 +109,31 @@ Rules for future privileged features (Nginx, Certbot, backups):
 OpenVPS owns only files named `openvps-*`. Renewal is left to Certbot's timer so that
 certificates keep renewing even when OpenVPS is stopped or removed.
 
+## Backups (v0.5)
+
+```
+ panel (plans, schedule, history in SQLite)             agent (root)
+   │  BackupService polls every 2 s, scheduler every 30 s
+   ├─ backup.run {sources, sealed secrets in request} ─▶ one background job at a time:
+   ├─ backup.job {id}  ◀─ step, log, result ───────────    tar -czf / mongodump --archive --gzip
+   └─ backup.list / inspect / restore / verify / delete     → pack → sha256 → /var/backups/openvps/<plan>/
+                                                           → S3 PUT (multipart if large) → retention
+```
+
+- `agent/backup-spec.ts`: the plan model, schedule maths, manifest format and strict validation,
+  shared by panel and agent (storage endpoints, bucket and folder names, tar exclusions...).
+- `agent/backup.ts`: `BackupManager`. Jobs are in agent memory (the panel records the outcome); a
+  job the agent no longer knows about is reported as interrupted. The agent holds no credentials:
+  MongoDB connection strings and storage keys arrive with each request, MongoDB's go to the tool in
+  a `0600` file inside the job's staging directory, and everything is scrubbed from error text.
+- `agent/s3.ts`: SigV4 over `node:http(s)` (single and multipart upload, list, head, get, delete),
+  checked against AWS's published signing example. No SDK.
+- `backups-store.ts`, `backups.ts`, `routes/backups.ts`: plans, destinations (keys sealed with
+  `secretbox`), run history, the scheduler and the HTTP API. Missed schedules run once on return.
+
+The agent never takes a command string: `tar`, `mongodump` and `mongorestore` run with fixed
+arguments built from validated values.
+
 ## Request lifecycle
 
 1. Security headers are set on every response (CSP, frame denial, HSTS over TLS).

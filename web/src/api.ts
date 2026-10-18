@@ -318,6 +318,156 @@ export interface CertificateResult {
   state?: SiteState;
 }
 
+// ---- Backups ----
+
+export type Schedule =
+  | { kind: 'manual' }
+  | { kind: 'hourly'; minute: number }
+  | { kind: 'daily'; hour: number; minute: number }
+  | { kind: 'weekly'; weekday: number; hour: number; minute: number };
+
+export type BackupSource =
+  | { type: 'files'; name: string; path: string; exclude: string[] }
+  | { type: 'mongodb'; name: string; databases: string[] };
+
+export interface Retention {
+  keepLast: number;
+  maxAgeDays: number | null;
+}
+
+export interface S3Target {
+  endpoint: string;
+  region: string;
+  bucket: string;
+  prefix: string;
+  pathStyle: boolean;
+}
+
+export type RunStatus = 'running' | 'succeeded' | 'partial' | 'failed';
+
+export interface BackupRun {
+  id: number;
+  plan: string;
+  kind: 'backup' | 'restore' | 'verify';
+  trigger: 'manual' | 'schedule';
+  jobId: string | null;
+  status: RunStatus;
+  startedAt: number;
+  finishedAt: number | null;
+  artifact: string | null;
+  sizeBytes: number | null;
+  step: string | null;
+  message: string | null;
+  result: { restored?: { source: string; kind: string; target: string }[]; checks?: { name: string; ok: boolean; detail: string }[] } | null;
+  actor: string | null;
+}
+
+export interface BackupPlan {
+  name: string;
+  enabled: boolean;
+  sources: BackupSource[];
+  schedule: Schedule;
+  retention: Retention;
+  keepLocal: boolean;
+  destination: string | null;
+  nextRunAt: number | null;
+  /** Connection strings with the password hidden, by MongoDB source name. */
+  mongo: Record<string, string>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BackupPlanView extends BackupPlan {
+  running: BackupRun | null;
+  lastBackup: BackupRun | null;
+  lastSuccessAt: number | null;
+}
+
+export interface BackupDestination {
+  name: string;
+  target: S3Target;
+  keyHint: string;
+  createdAt: number;
+  updatedAt: number;
+  lastTestAt: number | null;
+  lastTestOk: boolean | null;
+  lastTestMessage: string | null;
+  usedBy: string[];
+}
+
+export interface BackupStatus {
+  dir: string;
+  freeBytes: number | null;
+  tar: boolean;
+  mongodump: { path: string; version: string | null } | null;
+  mongorestore: { path: string; version: string | null } | null;
+  fileRoots: string[];
+  running: { id: string; kind: string; plan: string } | null;
+}
+
+export interface BackupsOverview {
+  agent: { available: boolean; reason: string | null };
+  status: BackupStatus | null;
+  plans: BackupPlanView[];
+  destinations: BackupDestination[];
+  runs: BackupRun[];
+  scheduler: boolean;
+  timezone: string;
+  serverTime: number;
+}
+
+export interface ArtifactInfo {
+  where: 'local' | 's3';
+  plan: string;
+  name: string;
+  sizeBytes: number;
+  createdAt: number;
+  complete: boolean;
+}
+
+export interface ManifestMember {
+  file: string;
+  kind: 'files' | 'mongodb';
+  source: string;
+  sizeBytes: number;
+  sha256: string;
+  path?: string;
+  exclude?: string[];
+  database?: string | null;
+  current: { exists: boolean; entries: number; allowed: boolean } | null;
+}
+
+export interface InspectResult {
+  manifest: { plan: string; artifact: string; createdAt: number; hostname: string; openvpsVersion: string };
+  members: ManifestMember[];
+  mongoSources: string[];
+}
+
+export interface PlanInput {
+  name?: string;
+  enabled: boolean;
+  sources: BackupSource[];
+  mongoUris: Record<string, string>;
+  schedule: Schedule;
+  retention: Retention;
+  keepLocal: boolean;
+  destination: string | null;
+}
+
+export interface DestinationInput {
+  name?: string;
+  target: S3Target;
+  secrets: { accessKeyId: string; secretAccessKey: string };
+}
+
+export interface RestoreInput {
+  where: 'local' | 'remote';
+  artifact: string;
+  items: { file: string; target: 'original' | 'alternate' }[];
+  drop: boolean;
+  confirm: string;
+}
+
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean; tokenIssued: boolean }>('GET', '/api/setup/status'),
   setup: (setupToken: string, username: string, password: string) =>
@@ -371,4 +521,24 @@ export const api = {
     request<{ available: boolean; certificates: CertInfo[]; certbot: NginxStatus['certbot'] | null; nginxInstalled: boolean }>('GET', '/api/certificates'),
   certEmail: () => request<{ email: string | null }>('GET', '/api/settings/certificates'),
   setCertEmail: (email: string) => request<{ email: string | null }>('PUT', '/api/settings/certificates', { email }),
+  backups: () => request<BackupsOverview>('GET', '/api/backups'),
+  backupRun: (id: number) => request<{ run: BackupRun; log: string[] }>('GET', `/api/backups/runs/${id}`),
+  createPlan: (input: PlanInput) => request<{ plan: BackupPlan }>('POST', '/api/backups/plans', input),
+  updatePlan: (name: string, input: PlanInput) => request<{ plan: BackupPlan }>('PUT', `/api/backups/plans/${encodeURIComponent(name)}`, input),
+  deletePlan: (name: string) => request<{ ok: true }>('DELETE', `/api/backups/plans/${encodeURIComponent(name)}`),
+  runPlan: (name: string) => request<{ run: BackupRun }>('POST', `/api/backups/plans/${encodeURIComponent(name)}/run`, {}),
+  artifacts: (name: string) =>
+    request<{ local: ArtifactInfo[]; remote: ArtifactInfo[] | null; remoteError: string | null; hasRemote: boolean }>('GET', `/api/backups/plans/${encodeURIComponent(name)}/artifacts`),
+  inspectBackup: (name: string, where: 'local' | 'remote', artifact: string) =>
+    request<InspectResult>('GET', `/api/backups/plans/${encodeURIComponent(name)}/inspect?where=${where}&artifact=${encodeURIComponent(artifact)}`),
+  verifyBackup: (name: string, where: 'local' | 'remote', artifact: string, deep: boolean) =>
+    request<{ run: BackupRun }>('POST', `/api/backups/plans/${encodeURIComponent(name)}/verify`, { where, artifact, deep }),
+  restoreBackup: (name: string, input: RestoreInput) => request<{ run: BackupRun }>('POST', `/api/backups/plans/${encodeURIComponent(name)}/restore`, input),
+  deleteBackup: (name: string, where: 'local' | 'remote', artifact: string) =>
+    request<{ ok: true }>('DELETE', `/api/backups/plans/${encodeURIComponent(name)}/artifacts?where=${where}&artifact=${encodeURIComponent(artifact)}`),
+  createDestination: (input: DestinationInput) => request<{ destination: BackupDestination }>('POST', '/api/backups/destinations', input),
+  updateDestination: (name: string, input: DestinationInput) =>
+    request<{ destination: BackupDestination }>('PUT', `/api/backups/destinations/${encodeURIComponent(name)}`, input),
+  deleteDestination: (name: string) => request<{ ok: true }>('DELETE', `/api/backups/destinations/${encodeURIComponent(name)}`),
+  testDestination: (input: DestinationInput) => request<{ ok: true; ms: number }>('POST', '/api/backups/destinations/test', input),
 };

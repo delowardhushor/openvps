@@ -6,6 +6,7 @@ import { AgentError, type Pm2Target } from './pm2.ts';
 import type { AppsManager } from './apps.ts';
 import type { RuntimeDetector } from './runtimes.ts';
 import type { SitesManager } from './sites.ts';
+import type { BackupManager } from './backup.ts';
 import { parseRequest, SpecError, type AgentInfo, type AgentRequest, type AgentResponse, type Owner } from './spec.ts';
 
 export const MAX_REQUEST_BYTES = 256 * 1024;
@@ -20,6 +21,7 @@ export interface AgentDeps {
   manager: AppsManager;
   runtimes: RuntimeDetector;
   sites: SitesManager;
+  backups: BackupManager;
 }
 
 /** Serialises state-changing PM2 operations so two requests never interleave. */
@@ -113,6 +115,28 @@ export function createDispatcher(d: AgentDeps) {
           return { certificate, ...applied };
         });
       }
+      // Backups run as background jobs of their own and never hold the PM2/Nginx lock.
+      case 'backup.status':
+        return d.backups.status();
+      case 'backup.run':
+        d.log.info('backup run', { plan: req.params.job.plan, sources: req.params.job.sources.map((s) => s.name), local: req.params.job.local, s3: !!req.params.job.s3 });
+        return d.backups.startBackup(req.params.job);
+      case 'backup.job':
+        return d.backups.job(req.params.id);
+      case 'backup.list':
+        return d.backups.list(req.params.plan, req.params.s3);
+      case 'backup.inspect':
+        return d.backups.inspect(req.params.ref, req.params.s3);
+      case 'backup.restore':
+        d.log.info('backup restore', { plan: req.params.restore.ref.plan, artifact: req.params.restore.ref.name, items: req.params.restore.items.length });
+        return d.backups.startRestore(req.params.restore);
+      case 'backup.verify':
+        return d.backups.startVerify(req.params.ref, req.params.s3, req.params.deep);
+      case 'backup.delete':
+        d.log.info('backup delete', { plan: req.params.ref.plan, artifact: req.params.ref.name, where: req.params.ref.where });
+        return d.backups.delete(req.params.ref, req.params.s3);
+      case 'backup.s3test':
+        return d.backups.testS3(req.params.s3);
     }
   };
 }

@@ -13,6 +13,7 @@ sudo openvps uninstall --purge    # remove everything
 | `/var/lib/openvps` (database, snapshots) | **kept** | removed |
 | `openvps` and `ovapps` users, `/var/lib/ovapps`, `/var/lib/openvps-agent` | kept | removed |
 | `/srv/apps` (your code) | kept | **kept** |
+| `/var/backups/openvps` (local backups) | kept | **kept** |
 | Final archive of config and data in `/root/openvps-final-<timestamp>.tar.gz` | — | created (skip with `--no-backup`) |
 
 Never touched: root's PM2 and its apps, your code in `/srv/apps`, system Node.js, firewall rules.

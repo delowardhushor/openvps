@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AppsPage } from './pages/AppsPage';
 import { AppDetailPage, NewAppPage } from './pages/AppDetailPages';
 import { CertificatesPage, NewSitePage, SiteDetailPage, SitesPage } from './pages/SitesPages';
+import { BackupsPage, DestinationFormPage, PlanDetailPage, PlanFormPage } from './pages/BackupsPages';
 
 type State =
   | { kind: 'loading' }
@@ -119,8 +120,13 @@ function Page({ path, user, onHost, navigate }: { path: string; user: User; onHo
   const sm = /^\/sites\/([a-z][a-z0-9-]*)$/.exec(path);
   if (sm) return <SiteDetailPage key={path} name={sm[1]!} navigate={navigate} />;
   if (path.startsWith('/certificates')) return <CertificatesPage navigate={navigate} />;
-  if (path.startsWith('/backups'))
-    return <ComingSoon title="Backups" phase={4}>Schedule MongoDB and file backups to off-server storage, with retention and tested restores.</ComingSoon>;
+  if (path === '/backups' || path === '/backups/') return <BackupsPage navigate={navigate} />;
+  if (path === '/backups/plans/new') return <PlanFormPage key={path} navigate={navigate} />;
+  const bp = /^\/backups\/plans\/([a-z][a-z0-9-]*)(\/edit)?$/.exec(path);
+  if (bp) return bp[2] ? <PlanFormPage key={path} name={bp[1]!} navigate={navigate} /> : <PlanDetailPage key={path} name={bp[1]!} navigate={navigate} />;
+  if (path === '/backups/destinations/new') return <DestinationFormPage key={path} navigate={navigate} />;
+  const bd = /^\/backups\/destinations\/([a-z][a-z0-9-]*)$/.exec(path);
+  if (bd) return <DestinationFormPage key={path} name={bd[1]!} navigate={navigate} />;
   return (
     <div className="card empty">
       <h1>Page not found</h1>

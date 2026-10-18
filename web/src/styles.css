@@ -470,3 +470,12 @@ fieldset.field legend { font-weight: 550; margin-bottom: 6px; padding: 0; }
 .inline-form input { flex: 1; min-width: 200px; height: 38px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }
 .domain-links a { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .type-cards { grid-template-columns: 1fr; } }
+
+/* ---- Backups ---- */
+.field input[type='checkbox'], .field input[type='radio'] { width: auto; height: auto; padding: 0; }
+.field label.check-block { display: flex; font-weight: 400; }
+.field-hint code { overflow-wrap: anywhere; }
+.inline-field { flex-wrap: wrap; }
+.inline-field .grow { flex: 1 1 200px; width: auto; min-width: 0; }
+.field .segmented label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; }
+.field .alert { margin: 8px 0 0; }

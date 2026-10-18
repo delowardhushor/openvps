@@ -7,6 +7,30 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+### Added
+- **Backups page** (Phase 4). Backup plans copy app folders and MongoDB databases on a schedule
+  (hourly, daily, weekly or on demand) to this server, to S3-compatible cloud storage, or both.
+  - Folders are archived with `tar` (names like `node_modules` can be skipped); MongoDB uses
+    `mongodump --archive --gzip`, with the connection string stored encrypted and passed through a
+    private temporary file, never on the command line.
+  - Cloud storage works with Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean
+    Spaces, MinIO and similar (a built-in AWS Signature V4 client, no SDK; multipart upload for
+    large backups). **Test connection** checks keys and bucket before you rely on them.
+  - Retention: keep the newest N backups and optionally nothing older than N days; only a plan's
+    own backups are ever deleted.
+  - Integrity: each backup records SHA-256 checksums; **Check** and **Full check** verify local
+    and cloud copies; restores verify before writing anything.
+  - Guided restore: choose folders and databases, restore into a separate folder (default) or over
+    the current one with an overwrite warning, optionally drop MongoDB collections first, and type
+    the plan name to confirm. Backups in the bucket are listed and restorable on a new server.
+  - Runs in the agent as low-priority background jobs, one at a time, with live progress; missed
+    schedules run once when the panel is back; failures are recorded and shown (partly done when
+    one destination failed).
+- `backups.*` configuration (local directory, allowed folders, scheduler switch, tool paths).
+- `openvps provision` creates `/var/backups/openvps` (root only) and reports whether `mongodump`
+  is installed. Uninstall always leaves backups in place.
+- Database migration 4 (backup plans, storage destinations, run history).
+
 ## [0.3.0] — Phase 3: Sites, domains and SSL
 
 ### Added

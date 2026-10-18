@@ -5,6 +5,7 @@ import { registerAuthRoutes, sessionCookieName } from './routes/auth.ts';
 import { registerSystemRoutes } from './routes/system.ts';
 import { registerAppRoutes } from './routes/apps.ts';
 import { registerSiteRoutes } from './routes/sites.ts';
+import { registerBackupRoutes } from './routes/backups.ts';
 import type { AppContext } from './context.ts';
 
 /** Header the SPA sends on every state-changing request. See checkCsrf. */
@@ -80,6 +81,7 @@ export function createApp(app: AppContext) {
   registerSystemRoutes(router, app);
   registerAppRoutes(router, app);
   registerSiteRoutes(router, app);
+  registerBackupRoutes(router, app);
   const serveStatic = createStaticHandler(app.config.webRoot);
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {

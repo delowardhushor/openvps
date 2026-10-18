@@ -89,4 +89,52 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    name: 'backups',
+    sql: `
+      CREATE TABLE backup_destinations (
+        id                INTEGER PRIMARY KEY,
+        name              TEXT NOT NULL UNIQUE,
+        target            TEXT NOT NULL,         -- JSON S3Target (no secrets)
+        secrets_sealed    TEXT NOT NULL,         -- AES-256-GCM sealed {accessKeyId, secretAccessKey}
+        created_at        INTEGER NOT NULL,
+        updated_at        INTEGER NOT NULL,
+        last_test_at      INTEGER,
+        last_test_ok      INTEGER,
+        last_test_message TEXT
+      );
+
+      CREATE TABLE backup_plans (
+        id            INTEGER PRIMARY KEY,
+        name          TEXT NOT NULL UNIQUE,
+        enabled       INTEGER NOT NULL DEFAULT 1,
+        spec          TEXT NOT NULL,             -- JSON PlanSpec (sources, schedule, retention, destination)
+        mongo_sealed  TEXT,                      -- sealed JSON {sourceName: connection string}
+        next_run_at   INTEGER,
+        created_at    INTEGER NOT NULL,
+        updated_at    INTEGER NOT NULL
+      );
+
+      -- History is kept when a plan is deleted, so there is no foreign key.
+      CREATE TABLE backup_runs (
+        id           INTEGER PRIMARY KEY,
+        plan         TEXT NOT NULL,
+        kind         TEXT NOT NULL CHECK (kind IN ('backup', 'restore', 'verify')),
+        trigger      TEXT NOT NULL CHECK (trigger IN ('manual', 'schedule')),
+        job_id       TEXT,
+        status       TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'partial', 'failed')),
+        started_at   INTEGER NOT NULL,
+        finished_at  INTEGER,
+        artifact     TEXT,
+        size_bytes   INTEGER,
+        step         TEXT,
+        message      TEXT,
+        result       TEXT,
+        actor        TEXT
+      );
+      CREATE INDEX backup_runs_plan ON backup_runs(plan, started_at);
+      CREATE INDEX backup_runs_status ON backup_runs(status);
+    `,
+  },
 ];

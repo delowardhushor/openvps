@@ -117,5 +117,8 @@ fi
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'OpenVPS panel'; then
   warn "A ufw rule tagged 'OpenVPS panel' still exists. Remove it with: sudo ufw status numbered; sudo ufw delete <n>"
 fi
+if [[ -d /var/backups/openvps ]]; then
+  ok "Backups in /var/backups/openvps were left in place. Delete them yourself when you no longer need them."
+fi
 echo
 echo "OpenVPS has been uninstalled."

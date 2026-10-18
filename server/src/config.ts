@@ -79,6 +79,19 @@ export interface Config {
     /** DNS servers for pre-flight checks (testing); null = system resolver. */
     dnsServers: string[] | null;
   };
+  /** Backups (read by the agent, and by the panel for the scheduler). */
+  backups: {
+    /** Where local backups are kept (root-only). Should be on a different disk if you can. */
+    dir: string;
+    /** Folders that may be backed up and restored into. */
+    fileRoots: string[];
+    /** null = auto-detect in /usr/bin and /usr/local/bin. */
+    tarBin: string | null;
+    mongodumpBin: string | null;
+    mongorestoreBin: string | null;
+    /** Run scheduled backups from the panel. */
+    scheduler: boolean;
+  };
 }
 
 export const DEFAULT_CONFIG_PATH = '/etc/openvps/config.json';
@@ -142,6 +155,14 @@ function defaults(dev: boolean): Omit<Config, 'source'> {
       acmeServer: null,
       acmeCaBundle: null,
       dnsServers: null,
+    },
+    backups: {
+      dir: dev ? resolve(process.cwd(), '.data', 'agent-backups') : '/var/backups/openvps',
+      fileRoots: [dev ? resolve(process.cwd(), '.data', 'apps') : '/srv/apps', ...(dev ? [] : ['/var/www'])],
+      tarBin: null,
+      mongodumpBin: null,
+      mongorestoreBin: null,
+      scheduler: true,
     },
   };
 }
@@ -266,6 +287,26 @@ export function validate(c: Omit<Config, 'source'>): void {
     abs('sites.staticRoots[]', r);
     if (r === '/' || /^\/(etc|root|boot|proc|sys|dev|usr|bin|sbin|lib|home)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps')) {
       throw new ConfigError(`sites.staticRoots must not include system or private directories (${r})`);
+    }
+  }
+  abs('backups.dir', c.backups.dir);
+  if (/^\/(proc|sys|dev|boot|run|tmp)(\/|$)/.test(c.backups.dir) || c.backups.dir === '/') {
+    throw new ConfigError('backups.dir must not be a system directory');
+  }
+  absOrNull('backups.tarBin', c.backups.tarBin);
+  absOrNull('backups.mongodumpBin', c.backups.mongodumpBin);
+  absOrNull('backups.mongorestoreBin', c.backups.mongorestoreBin);
+  bool('backups.scheduler', c.backups.scheduler);
+  if (!Array.isArray(c.backups.fileRoots) || c.backups.fileRoots.length === 0 || c.backups.fileRoots.length > 16) {
+    throw new ConfigError('backups.fileRoots must list 1 to 16 directories');
+  }
+  for (const r of c.backups.fileRoots) {
+    abs('backups.fileRoots[]', r);
+    if (r === '/' || /^\/(proc|sys|dev|boot|run|tmp)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps')) {
+      throw new ConfigError(`backups.fileRoots must not include system or OpenVPS data directories (${r}); use "openvps backup-db" for the panel database`);
+    }
+    if (r === c.backups.dir || c.backups.dir.startsWith(r.endsWith('/') ? r : r + '/') || r.startsWith(c.backups.dir + '/')) {
+      throw new ConfigError(`backups.fileRoots must not contain or sit inside backups.dir (${r})`);
     }
   }
   if (c.sites.dnsServers !== null) {

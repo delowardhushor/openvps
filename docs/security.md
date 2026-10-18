@@ -98,7 +98,20 @@ domains that hand-made sites already serve. Generated sites deny dotfiles (`.env
 Certbot runs with a fixed argument list; the panel never passes command strings. When the panel
 is served through its own Nginx site, it trusts `X-Real-IP` only from loopback connections.
 
+**Backups (v0.5).** Plans and restore requests are validated twice. Folders must resolve (symlinks
+included) to a real directory inside `backups.fileRoots`, and a restore re-checks the recorded
+path, so a backup cannot write outside the roots. Archives are made and extracted with fixed
+`tar` arguments, tar exclusions are limited to simple name patterns, and every artifact and every
+member is verified against its SHA-256 before anything is restored. MongoDB connection strings and
+storage keys are sealed at rest, passed to the agent per task, given to `mongodump`/`mongorestore`
+through a private `0600` file (never argv), and scrubbed from errors, logs and the activity log.
+Storage endpoints must be `https://` unless they are on a private network. Local backups are
+`root`-only. A restore needs the plan name typed and shows overwrite warnings first.
+
 ## Known limitations (planned)
+
+- Backups are not encrypted by OpenVPS (use provider-side encryption); the storage bucket is trusted
+  to hold only backups made by this server.
 
 - No multi-factor authentication yet (planned with team accounts).
 - A single administrator role. Role-based access arrives with team accounts (Phase 6).

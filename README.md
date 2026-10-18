@@ -6,10 +6,11 @@ OpenVPS gives you a secure web dashboard for the server it runs on, so you can s
 repeating the same SSH commands. It is built for developers, freelancers and small
 teams running Node.js applications on Ubuntu.
 
-> **Status: early development (v0.3).** Installation, secure sign-in, live server
-> monitoring, **Node.js application management with PM2**, and **domains with free HTTPS
-> certificates** for apps, React/static sites and the panel itself work today. Git
-> deployments come in v0.4; backups are on the [roadmap](docs/roadmap.md).
+> **Status: early development.** Installation, secure sign-in, live server monitoring,
+> **Node.js application management with PM2**, **domains with free HTTPS certificates** for
+> apps, React/static sites and the panel itself, and **scheduled backups** of folders and
+> MongoDB to this server and S3-compatible storage work today. Git deployments are next
+> (see the [roadmap](docs/roadmap.md)).
 
 ## What works today
 
@@ -32,6 +33,9 @@ teams running Node.js applications on Ubuntu.
   Configs are generated from validated settings, checked with `nginx -t` and rolled back on
   failure; DNS and port 80 are checked before asking Let's Encrypt for a certificate, which
   Certbot then renews automatically. Hand-made Nginx sites are shown read-only and never changed.
+- **Backups.** Schedule backups of app folders and MongoDB (`mongodump`) to this server and to
+  any S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO...), with
+  retention, checksum verification and a guided restore that warns before overwriting anything.
 - **Activity log.** Sign-ins and administrative actions, with secrets redacted.
 - **Local recovery CLI.** `openvps reset-password`, `unlock`, `revoke-sessions`,
   `setup-token`, `backup-db` and more.
@@ -90,6 +94,7 @@ journalctl -u openvps -f            # logs
 | [Installation](docs/installation.md) | Requirements, options, first login, firewall |
 | [Applications](docs/applications.md) | Managing Node.js apps with PM2 |
 | [Sites & SSL](docs/sites.md) | Domains, static sites and SPAs, HTTPS certificates |
+| [Backups](docs/backups.md) | Scheduled folder and MongoDB backups, cloud storage, restore |
 | [Configuration](docs/configuration.md) | Every setting in `/etc/openvps/config.json` |
 | [Upgrading](docs/upgrading.md) | Upgrade procedure and automatic rollback |
 | [Uninstalling](docs/uninstalling.md) | What is removed and what is kept |

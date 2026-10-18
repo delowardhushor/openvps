@@ -8,6 +8,8 @@ import { AppsManager } from './agent/apps.ts';
 import { RuntimeDetector } from './agent/runtimes.ts';
 import { createDispatcher, listenAgent, type AgentDeps } from './agent/server.ts';
 import { SitesManager, type SitesOptions } from './agent/sites.ts';
+import { BackupManager } from './agent/backup.ts';
+import { hostname } from 'node:os';
 import { firstExisting, runTool } from './agent/exec.ts';
 import { VERSION } from './version.ts';
 
@@ -121,6 +123,22 @@ export function buildSites(config: Config, overrides: Partial<SitesOptions> = {}
   });
 }
 
+export function buildBackups(config: Config, log: Logger, overrides: Partial<ConstructorParameters<typeof BackupManager>[0]> = {}): BackupManager {
+  const b = config.backups;
+  return new BackupManager({
+    dir: b.dir,
+    fileRoots: b.fileRoots,
+    tarBin: b.tarBin ?? firstExisting(['/usr/bin/tar', '/bin/tar', '/usr/local/bin/tar']),
+    niceBin: firstExisting(['/usr/bin/nice', '/bin/nice']),
+    mongodumpBin: b.mongodumpBin ?? firstExisting(['/usr/bin/mongodump', '/usr/local/bin/mongodump', '/snap/bin/mongodump']),
+    mongorestoreBin: b.mongorestoreBin ?? firstExisting(['/usr/bin/mongorestore', '/usr/local/bin/mongorestore', '/snap/bin/mongorestore']),
+    version: VERSION,
+    hostname: hostname(),
+    log,
+    ...overrides,
+  });
+}
+
 export function buildAgent(config: Config, log: Logger, overrides: Partial<AgentDeps> = {}): AgentDeps {
   let state: AgentState = {};
   try {
@@ -180,6 +198,7 @@ export function buildAgent(config: Config, log: Logger, overrides: Partial<Agent
     manager,
     runtimes,
     sites: buildSites(config),
+    backups: buildBackups(config, log),
     ...overrides,
   };
 }

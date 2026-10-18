@@ -45,6 +45,7 @@ async function main(): Promise<void> {
   }
 
   app.metrics.start();
+  app.backups.start({ scheduler: config.backups.scheduler });
   const maintenance = () => {
     try {
       const s = app.sessions.pruneExpired();
@@ -88,6 +89,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     log.info('shutting down', { signal });
     app.metrics.stop();
+    app.backups.stop();
     server.close(() => {
       app.db.close();
       process.exit(0);

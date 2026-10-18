@@ -35,7 +35,7 @@ const NAV: NavItem[] = [
   { path: '/deployments', label: 'Deployments', icon: I.rocket, phase: 2 },
   { path: '/sites', label: 'Sites & domains', icon: I.globe },
   { path: '/certificates', label: 'SSL certificates', icon: I.lock },
-  { path: '/backups', label: 'Backups', icon: I.archive, phase: 4 },
+  { path: '/backups', label: 'Backups', icon: I.archive },
   { path: '/activity', label: 'Activity log', icon: I.list },
   { path: '/settings', label: 'Settings', icon: I.gear },
 ];

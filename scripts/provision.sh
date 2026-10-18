@@ -69,13 +69,31 @@ provision_pm2() {
   ok "Installed PM2 $want for $APPS_USER${have:+ (was $have)}"
 }
 
-# Find the pm2 that root already uses (system-wide npm, or nvm in root's shell profile).
+# Find the pm2 that root already uses, without running root's shell startup files
+# (an interactive shell would take over the terminal and hang).
+#   1. From root's running PM2 daemon: its Node.js binary usually has pm2 next to it (npm -g, nvm, volta).
+#   2. Standard install locations.
+pm2_beside_node() { # pm2_beside_node <node binary>
+  local bin_dir lib
+  bin_dir="$(dirname "$1")"
+  if [[ -x "$bin_dir/pm2" ]]; then echo "$bin_dir/pm2"; return 0; fi
+  lib="$(dirname "$bin_dir")/lib/node_modules/pm2/bin/pm2"
+  if [[ -f "$lib" ]]; then echo "$lib"; return 0; fi
+  return 1
+}
+
 detect_root_pm2() {
-  local found=""
-  found="$(HOME=/root timeout 15 bash -lic 'command -v pm2' 2>/dev/null </dev/null | tail -n1 || true)"
-  if [[ -z "$found" || ! -x "$found" ]]; then
-    local c
-    for c in /usr/local/bin/pm2 /usr/bin/pm2 /root/.nvm/versions/node/*/bin/pm2 /root/.volta/bin/pm2 /root/.npm-global/bin/pm2; do
+  local found="" pid exe c
+  if [[ -r /root/.pm2/pm2.pid ]]; then
+    pid="$(tr -dc '0-9' </root/.pm2/pm2.pid)"
+    if [[ -n "$pid" && -e "/proc/$pid/exe" ]]; then
+      exe="$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)"
+      if [[ -n "$exe" ]]; then found="$(pm2_beside_node "$exe" || true)"; fi
+    fi
+  fi
+  if [[ -z "$found" ]]; then
+    for c in /usr/local/bin/pm2 /usr/bin/pm2 /root/.volta/bin/pm2 /root/.npm-global/bin/pm2 \
+      /root/.local/share/pnpm/pm2 /root/.nvm/versions/node/*/bin/pm2; do
       if [[ -x "$c" ]]; then found="$c"; fi
     done
   fi
@@ -83,7 +101,7 @@ detect_root_pm2() {
     warn "Ignoring unusual pm2 path: $found"
     found=""
   fi
-  if [[ -n "$found" && -x "$found" ]]; then
+  if [[ -n "$found" && -f "$found" ]]; then
     ROOT_PM2="$found"
     ok "Found root's PM2 at $ROOT_PM2"
   else

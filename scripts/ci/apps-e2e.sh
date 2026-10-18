@@ -27,7 +27,8 @@ sudo mkdir -p /root/legacy
 echo "require('http').createServer((q,s)=>s.end('legacy ok')).listen(4101); console.log('legacy up')" | sudo tee /root/legacy/server.js >/dev/null
 sudo env HOME=/root PM2_HOME=/root/.pm2 "$ROOTPM2" start /root/legacy/server.js --name legacy-api
 wait_http http://127.0.0.1:4101 'legacy ok' >/dev/null
-sudo openvps provision
+# Run provision inside a pseudo-terminal, as an admin over SSH would (v0.2.0 hung there).
+sudo timeout 180 script -qec "openvps provision" /dev/null
 
 echo "== 2. sign in"
 TOKEN="$(sudo openvps setup-token)"

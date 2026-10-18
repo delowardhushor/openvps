@@ -7,6 +7,15 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Fixed
+- `openvps provision` hung forever when run from a terminal (SSH) while looking for root's PM2:
+  it started root's shell in interactive mode, which waits for the terminal. It now finds PM2
+  from root's running PM2 daemon and standard install locations (npm, nvm, volta), without
+  running any shell startup files.
+- CI now runs `provision` inside a pseudo-terminal to catch this class of problem.
+
 ## [0.2.0] — Phase 2a: Applications
 
 ### Added
@@ -60,6 +69,7 @@ doesn't know about the new services; later upgrades run it automatically.
 - Versioned SQLite schema migrations.
 - Documentation, CI workflow, release workflow and issue templates.
 
-[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.1
 [0.2.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.0
 [0.1.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.1.0

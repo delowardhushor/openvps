@@ -31,7 +31,7 @@ export function Icon({ children }: { children: ReactNode }) {
 
 const NAV: NavItem[] = [
   { path: '/', label: 'Overview', icon: I.grid },
-  { path: '/apps', label: 'Applications', icon: I.box, phase: 2 },
+  { path: '/apps', label: 'Applications', icon: I.box },
   { path: '/deployments', label: 'Deployments', icon: I.rocket, phase: 2 },
   { path: '/sites', label: 'Sites & domains', icon: I.globe, phase: 3 },
   { path: '/certificates', label: 'SSL certificates', icon: I.lock, phase: 3 },

@@ -7,6 +7,8 @@ import type { Sessions } from './auth/sessions.ts';
 import type { RateLimiter } from './auth/ratelimit.ts';
 import type { MetricsCollector, HostInfo } from './metrics/collector.ts';
 import type { Runner } from './system/exec.ts';
+import type { AgentClient } from './agent-client.ts';
+import type { AppsStore } from './apps-store.ts';
 
 /** Shared services handed to route modules. */
 export interface AppContext {
@@ -21,5 +23,7 @@ export interface AppContext {
   metrics: MetricsCollector;
   host: HostInfo;
   run: Runner;
+  agent: AgentClient;
+  apps: AppsStore;
   startedAt: number;
 }

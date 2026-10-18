@@ -55,6 +55,11 @@ rollback() {
     systemctl daemon-reload
   fi
   systemctl start openvps || true
+  if [[ ! -f "$PREV_DIR/server/dist/agent.js" ]] && systemctl list-unit-files openvps-agent.service >/dev/null 2>&1; then
+    systemctl disable --now openvps-agent >/dev/null 2>&1 || true
+  elif systemctl is-enabled --quiet openvps-agent 2>/dev/null; then
+    systemctl restart openvps-agent || true
+  fi
   if wait_healthy "$PREV_VERSION"; then
     ok "Rolled back. OpenVPS $PREV_VERSION is running again."
   else
@@ -137,6 +142,9 @@ main_upgrade() {
   systemctl start openvps || rollback "service did not start"
   wait_healthy "$PKG_VERSION" || rollback "health check did not pass"
   ok "OpenVPS $PKG_VERSION is running"
+  if [[ -f "$final/scripts/provision.sh" ]]; then
+    bash "$final/scripts/provision.sh" || warn "Application management setup failed; the panel is fine. Fix the issue above, then run: sudo openvps provision"
+  fi
 
   # Prune old releases, keeping the newest $KEEP_RELEASES (never the current one).
   local cur

@@ -17,6 +17,16 @@ npm run dev:web      # http://localhost:5173 with hot reload; /api is proxied to
 Open http://localhost:5173. The dev server logs a `development setup token` (also in
 `server/.data/setup-token`). Delete `server/.data` to start over.
 
+### Applications in development
+
+`npm run dev:agent` starts the agent as your own user on `server/.data/agent.sock`, with
+apps under `server/.data/apps`. It needs a PM2 to talk to: point it at one with a config file,
+for example `{"apps": {"pm2Bin": "/usr/local/lib/node_modules/pm2/bin/pm2", "pm2Node": "/usr/local/bin/node"}}`
+in `OPENVPS_CONFIG`, and use the same file for `dev:server`. Without one, the Applications page
+explains that PM2 is unavailable. The automated tests use a stand-in PM2
+(`server/test/fixtures/fake-pm2.mjs`); CI also runs a real-PM2 end-to-end test
+(`scripts/ci/apps-e2e.sh`).
+
 On macOS, metrics fall back to Node's `os` module: CPU, memory, load and root disk work;
 network and swap show as unavailable.
 

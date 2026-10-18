@@ -35,6 +35,7 @@ Commands:
 Installation management (run as root):
   upgrade [--version X]     Upgrade to the latest or a specific release, with automatic rollback
   uninstall [--purge]       Remove OpenVPS (keeps config and data unless --purge)
+  provision                 Set up or repair application management (agent, apps user, PM2)
 
 Service control is done with systemd: sudo systemctl status|restart openvps
 `;

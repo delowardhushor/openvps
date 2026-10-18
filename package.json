@@ -1,6 +1,6 @@
 {
   "name": "openvps",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Open-source, self-hosted VPS management panel",
   "license": "MIT",
@@ -17,6 +17,7 @@
     "test": "npm test -w server",
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
+    "dev:agent": "npm run dev:agent -w server",
     "package": "bash scripts/package-release.sh"
   }
 }

@@ -60,6 +60,11 @@ const ACTIONS: Record<string, string> = {
   'cli.unlock': 'Account unlocked (CLI)',
   'cli.revoke_sessions': 'Sessions revoked (CLI)',
   'cli.admin_create': 'Administrator created (CLI)',
+  'process.control': 'Process control',
+  'app.create': 'Application created',
+  'app.update': 'Application settings changed',
+  'app.env_update': 'Environment variables changed',
+  'app.delete': 'Application deleted',
 };
 
 export function actionLabel(a: string): string {
@@ -85,4 +90,10 @@ export function shortUserAgent(ua: string | null): string {
   const os = /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Linux/.test(ua) ? 'Linux' : null;
   if (browser && os) return `${browser} on ${os}`;
   return browser ?? os ?? ua.slice(0, 40);
+}
+
+/** Remove ANSI colour codes from log lines. */
+export function stripAnsi(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
 }

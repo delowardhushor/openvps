@@ -6,6 +6,8 @@ import { LoginPage, SetupPage } from './pages/AuthPages';
 import { DashboardPage } from './pages/DashboardPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AppsPage } from './pages/AppsPage';
+import { AppDetailPage, NewAppPage } from './pages/AppDetailPages';
 
 type State =
   | { kind: 'loading' }
@@ -87,20 +89,30 @@ export function App() {
     case 'app':
       return (
         <Layout path={path} navigate={navigate} user={state.user} hostname={hostname} onLogout={() => void logout()}>
-          <Page path={path} user={state.user} onHost={setHostname} />
+          <Page path={path} user={state.user} onHost={setHostname} navigate={navigate} />
         </Layout>
       );
   }
 }
 
-function Page({ path, user, onHost }: { path: string; user: User; onHost: (h: string) => void }) {
-  if (path === '/' || path === '') return <DashboardPage onHost={onHost} />;
+function Page({ path, user, onHost, navigate }: { path: string; user: User; onHost: (h: string) => void; navigate: (p: string) => void }) {
+  if (path === '/' || path === '') return <DashboardPage onHost={onHost} navigate={navigate} />;
+  if (path === '/apps' || path === '/apps/') return <AppsPage navigate={navigate} />;
+  if (path === '/apps/new') return <NewAppPage navigate={navigate} />;
+  const m = /^\/apps\/(root|apps)\/([^/]+)$/.exec(path);
+  if (m) {
+    let name = m[2]!;
+    try {
+      name = decodeURIComponent(name);
+    } catch {
+      /* keep raw */
+    }
+    return <AppDetailPage key={path} owner={m[1] as 'root' | 'apps'} name={name} navigate={navigate} />;
+  }
   if (path.startsWith('/activity')) return <ActivityPage />;
   if (path.startsWith('/settings')) return <SettingsPage user={user} />;
-  if (path.startsWith('/apps'))
-    return <ComingSoon title="Applications" phase={2}>Register Node.js applications, manage environment variables, and start, stop or restart them through PM2.</ComingSoon>;
   if (path.startsWith('/deployments'))
-    return <ComingSoon title="Deployments" phase={2}>Deploy from a Git branch with dependency install, build steps, release history and rollback.</ComingSoon>;
+    return <ComingSoon title="Deployments" phase={2}>Deploy from a Git branch with deploy keys, dependency install, build steps, release history and rollback. Coming in v0.3.</ComingSoon>;
   if (path.startsWith('/sites'))
     return <ComingSoon title="Sites & domains" phase={3}>Create validated Nginx reverse-proxy sites and attach domains to applications.</ComingSoon>;
   if (path.startsWith('/certificates'))

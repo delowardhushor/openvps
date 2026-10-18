@@ -30,9 +30,20 @@ mkdir -p "$D/server" "$D/web" "$D/scripts" "$D/packaging"
 cp -r server/dist "$D/server/"
 cp server/package.json "$D/server/"
 cp -r web/dist "$D/web/"
-cp scripts/install.sh scripts/upgrade.sh scripts/uninstall.sh "$D/scripts/"
+cp scripts/install.sh scripts/upgrade.sh scripts/uninstall.sh scripts/provision.sh "$D/scripts/"
 cp packaging/* "$D/packaging/"
 cp LICENSE README.md CHANGELOG.md "$D/"
+
+# Bundle PM2 for the apps user so servers need no npm registry access at install time.
+# PM2 is pure JavaScript, so the package stays architecture-independent.
+if [[ "${SKIP_PM2:-0}" != 1 ]]; then
+  PM2_SPEC="${PM2_VERSION:-pm2@^6}"
+  mkdir -p "$D/vendor/pm2"
+  (cd "$D/vendor/pm2" && echo '{"private":true}' >package.json && npm install --no-audit --no-fund --omit=dev --no-package-lock "$PM2_SPEC" >/dev/null)
+  echo "Bundled PM2 $(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$D/vendor/pm2/node_modules/pm2/package.json" | head -n1)"
+else
+  echo "SKIP_PM2=1: package built without PM2 (application management will be unavailable)" >&2
+fi
 echo "$VERSION" >"$D/VERSION"
 
 mkdir -p "$OUT"

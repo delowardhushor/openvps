@@ -8,6 +8,10 @@ import { RateLimiter } from './auth/ratelimit.ts';
 import { MetricsCollector, hostInfo, type Sources } from './metrics/collector.ts';
 import { runAllowed, type Runner } from './system/exec.ts';
 import type { AppContext } from './context.ts';
+import { AgentClient } from './agent-client.ts';
+import { AppsStore } from './apps-store.ts';
+import { SecretBox } from './secretbox.ts';
+import { mkdirSync } from 'node:fs';
 
 export interface BootstrapOptions {
   log?: Logger;
@@ -15,6 +19,12 @@ export interface BootstrapOptions {
   memoryDb?: boolean;
   run?: Runner;
   metricsSources?: Sources;
+  agent?: AgentClient;
+}
+
+function secrets(dataDir: string): SecretBox {
+  mkdirSync(dataDir, { recursive: true, mode: 0o750 });
+  return SecretBox.fromDataDir(dataDir);
 }
 
 export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Promise<AppContext> {
@@ -39,6 +49,8 @@ export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Pr
     metrics: new MetricsCollector({ ...config.metrics, sources: opts.metricsSources }),
     host: await hostInfo(opts.metricsSources),
     run: opts.run ?? runAllowed,
+    agent: opts.agent ?? new AgentClient(config.agent.socket),
+    apps: new AppsStore(db, secrets(config.dataDir)),
     startedAt: Date.now(),
   };
 }

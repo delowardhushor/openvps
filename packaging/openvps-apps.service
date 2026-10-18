@@ -1,0 +1,28 @@
+[Unit]
+Description=OpenVPS applications (PM2 for the unprivileged user ovapps)
+Documentation=https://github.com/delowardhushor/openvps/blob/main/docs/applications.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=ovapps
+Group=ovapps
+Environment=HOME=/var/lib/ovapps
+Environment=PM2_HOME=/var/lib/ovapps/.pm2
+Environment=PATH=/opt/openvps/node/bin:/usr/local/bin:/usr/bin:/bin
+LimitNOFILE=65536
+PIDFile=/var/lib/ovapps/.pm2/pm2.pid
+Restart=on-failure
+RestartSec=5
+# Same commands `pm2 startup` would install, using OpenVPS's bundled PM2.
+ExecStart=/opt/openvps/node/bin/node /opt/openvps/pm2/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/opt/openvps/node/bin/node /opt/openvps/pm2/node_modules/pm2/bin/pm2 reload all
+ExecStop=/opt/openvps/node/bin/node /opt/openvps/pm2/node_modules/pm2/bin/pm2 kill
+
+# Apps may not gain privileges (no sudo, no setuid binaries) or modify the OS.
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

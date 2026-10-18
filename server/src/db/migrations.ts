@@ -59,4 +59,20 @@ export const migrations: Migration[] = [
       CREATE INDEX audit_action ON audit_log(action);
     `,
   },
+  {
+    version: 2,
+    name: 'apps',
+    sql: `
+      CREATE TABLE apps (
+        id               INTEGER PRIMARY KEY,
+        name             TEXT NOT NULL UNIQUE,
+        spec             TEXT NOT NULL,          -- JSON AppSpec (no secrets)
+        env_sealed       TEXT,                   -- AES-256-GCM sealed JSON of env vars
+        created_at       INTEGER NOT NULL,
+        updated_at       INTEGER NOT NULL,
+        last_applied_at  INTEGER,
+        last_error       TEXT
+      );
+    `,
+  },
 ];

@@ -1,5 +1,8 @@
 {
-  "listen": { "host": "0.0.0.0", "port": 7443 },
+  "listen": {
+    "host": "0.0.0.0",
+    "port": 7443
+  },
   "tls": {
     "enabled": true,
     "certFile": "/etc/openvps/tls/cert.pem",
@@ -8,7 +11,10 @@
   "trustProxy": false,
   "dataDir": "/var/lib/openvps",
   "logLevel": "info",
-  "session": { "idleMinutes": 120, "absoluteHours": 12 },
+  "session": {
+    "idleMinutes": 120,
+    "absoluteHours": 12
+  },
   "auth": {
     "minPasswordLength": 12,
     "maxFailedAttempts": 5,
@@ -16,7 +22,41 @@
     "ipAttemptsPerWindow": 20,
     "ipWindowMinutes": 15
   },
-  "metrics": { "intervalSeconds": 5, "historyMinutes": 60 },
-  "services": ["nginx", "ssh", "cron", "ufw"],
-  "audit": { "retentionDays": 180 }
+  "metrics": {
+    "intervalSeconds": 5,
+    "historyMinutes": 60
+  },
+  "services": [
+    "nginx",
+    "ssh",
+    "cron",
+    "ufw"
+  ],
+  "audit": {
+    "retentionDays": 180
+  },
+  "agent": {
+    "socket": "/run/openvps-agent/agent.sock",
+    "socketGroup": "openvps",
+    "manageRootPm2": true,
+    "rootPm2Bin": null,
+    "rootPm2Home": "/root/.pm2",
+    "stateFile": "/etc/openvps/agent.json"
+  },
+  "apps": {
+    "user": "ovapps",
+    "home": "/var/lib/ovapps",
+    "allowedRoots": [
+      "/srv/apps"
+    ],
+    "pm2Bin": "/opt/openvps/pm2/node_modules/pm2/bin/pm2",
+    "pm2Node": "/opt/openvps/node/bin/node",
+    "service": "openvps-apps.service",
+    "specDir": "/var/lib/openvps-agent/apps",
+    "runtimeCandidates": [
+      "/usr/bin/node",
+      "/usr/local/bin/node",
+      "/opt/openvps/node/bin/node"
+    ]
+  }
 }

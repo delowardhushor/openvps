@@ -41,10 +41,33 @@ HSTS over TLS, `Cache-Control: no-store` on API responses.
 **Transport.** HTTPS by default (TLS 1.2+), using a self-signed ECDSA certificate created at
 install time, with its fingerprint printed for verification.
 
-**No command execution API.** External programs can only be started through
+**No command execution API.** The panel can start external programs only through
 `system/exec.ts`: a hard-coded allowlist of absolute paths, `execFile` with no shell, a
-restricted argument character set, a minimal environment, timeouts and output caps. Phase 1
-uses only `systemctl show` (read-only).
+restricted argument character set, a minimal environment, timeouts and output caps. It uses
+only `systemctl show` (read-only).
+
+**The agent (v0.2).** All privileged work goes through `openvps-agent`, a root service that:
+
+- listens on a Unix socket in a `root:openvps 0750` directory, so only root and the panel can connect;
+- accepts exactly six actions (`agent.info`, `pm2.list`, `pm2.control`, `pm2.logs`, `app.apply`,
+  `app.remove`), each with strictly validated parameters. Unknown actions and fields are refused;
+- treats **root's existing PM2 apps** as control-only: start, stop, restart and reload of processes
+  that already exist. It never creates root processes or changes their commands or environment;
+- runs **apps added in OpenVPS** as the unprivileged `ovapps` user (via `runuser`, under
+  `NoNewPrivileges` and `ProtectSystem=full`). App directories must resolve (after symlinks)
+  inside `apps.allowedRoots`, and entry files inside the app directory;
+- writes app definitions to a root-owned directory, so `ovapps` cannot plant symlinks the
+  agent would write through;
+- opens log files with `O_NOFOLLOW` and requires them to be regular files owned by the
+  expected user. An app cannot make the agent read `/etc/shadow` by pointing its log there;
+- never invokes the `pm2` CLI while that PM2's daemon is down, because doing so would start a
+  daemon inside the agent's service;
+- strips PM2's environment data (which contains apps' secrets) from everything it returns;
+- serialises state-changing operations, and logs every action without env values.
+
+**App secrets.** Environment variables are sealed with AES-256-GCM (random IV per value, key in
+`/var/lib/openvps/secret.key`, `0600`), write-only in the API and UI, and only their names appear
+in the activity log. They are decrypted only to hand to the agent when an app starts.
 
 **Least privilege.** The service runs as `openvps` with no capabilities, `NoNewPrivileges`,
 `ProtectSystem=strict` (writable: `/var/lib/openvps` only), `ProtectHome`, private `/tmp` and
@@ -68,6 +91,10 @@ changes to Nginx, PM2, system Node.js or firewall policy unless requested.
 
 - No multi-factor authentication yet (planned with team accounts).
 - A single administrator role. Role-based access arrives with team accounts (Phase 6).
+- Anyone with panel access can run code as `ovapps` by adding an app; that is the purpose of a
+  deployment panel. They cannot run code as root through the panel.
+- PM2 keeps a running app's environment in `ovapps`' PM2 files; the encryption protects
+  OpenVPS's copy, not PM2's.
 - Rate-limit counters are in memory and reset when the service restarts.
 - The self-signed certificate triggers a browser warning. Use your own certificate or the
   Phase 3 certificate manager.

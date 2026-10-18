@@ -33,9 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Syntax check
-        run: for f in scripts/*.sh packaging/*.sh; do bash -n "$f"; done
+        run: for f in scripts/*.sh scripts/ci/*.sh packaging/*.sh; do bash -n "$f"; done
       - name: ShellCheck
-        run: shellcheck -S warning scripts/*.sh packaging/*.sh
+        run: shellcheck -S warning scripts/*.sh scripts/ci/*.sh packaging/*.sh
 
   audit:
     name: Dependency audit
@@ -69,6 +69,8 @@ jobs:
           curl -fsk https://127.0.0.1:7443/api/health
           test "$(curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:7443/api/system/overview)" = 401
           sudo openvps setup-token >/dev/null
+      - name: Applications end-to-end (real systemd + real PM2)
+        run: bash scripts/ci/apps-e2e.sh
       - name: Reinstall-upgrade with rollback path exercised
         run: sudo openvps upgrade --package release/openvps-*.tar.gz --reinstall --yes
       - name: Uninstall
@@ -77,4 +79,7 @@ jobs:
           test ! -e /opt/openvps
       - name: Service logs on failure
         if: failure()
-        run: sudo journalctl -u openvps -n 200 --no-pager || true
+        run: |
+          sudo journalctl -u openvps -n 100 --no-pager || true
+          sudo journalctl -u openvps-agent -n 100 --no-pager || true
+          sudo journalctl -u openvps-apps -n 100 --no-pager || true

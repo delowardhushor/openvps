@@ -21,7 +21,7 @@
 ## Repository layout
 
 ```
-server/          API, CLI (TypeScript, Node.js built-ins only)
+server/          API, CLI and agent (TypeScript, Node.js built-ins only)
   src/
   test/          node:test unit and API tests
 web/             React + Vite single-page app
@@ -52,25 +52,39 @@ or nvm setup. OpenVPS ships its own runtime in `/opt/openvps/node` so the two ne
 `current → releases/<version>` makes upgrades and rollbacks a rename. Phase 2 will use the same
 pattern for application deployments.
 
-**Unprivileged by default.** Phase 1 reads `/proc` and asks systemd for unit status over D-Bus,
-neither of which needs root. The systemd unit removes all capabilities and applies
-`ProtectSystem=strict`, `NoNewPrivileges`, a syscall filter and more.
+**Unprivileged by default.** The panel reads `/proc`, asks systemd for unit status, and talks to the
+agent; none of that needs root. Its systemd unit removes all capabilities and applies
+`ProtectSystem=strict`, `NoNewPrivileges`, a syscall filter and more. Root work is confined to the
+agent's fixed action list.
 
-## Privileged operations (Phase 2+)
+## The agent and applications (v0.2)
 
-Managing Nginx, Certbot, PM2 for other users, and backups needs root for a few specific
-actions. The plan, which contributors should follow:
+```
+ panel (openvps) ──Unix socket──▶ openvps-agent (root)
+                                    ├─ root's PM2   (existing apps: list, control, logs only)
+                                    └─ runuser ovapps → OpenVPS PM2 ──▶ apps in /srv/apps
+                                                         ▲
+                                     openvps-apps.service (PM2 daemon for ovapps, survives reboots)
+```
 
-1. A separate **privileged helper** runs as root, either as a root-owned script per
-   action that `openvps` may run through a narrowly scoped `sudoers` entry, or as a small root
-   daemon on a Unix socket owned by `openvps`.
-2. The helper exposes **named actions with typed, validated parameters** (`nginx.write_site
-   {name, domain, upstreamPort}`, `nginx.test_and_reload`), never strings to execute.
-3. Each action validates again, writes files atomically, runs the tool's own check
-   (`nginx -t`), and restores the previous file on failure (FR-07, BR-05).
-4. Every call is audited with actor, parameters (redacted) and outcome.
+- `server/src/agent/spec.ts`: the protocol. It lists the only actions the agent accepts, and the
+  validation of app specs and env vars, shared by the panel and the agent.
+- `server/src/agent/pm2.ts`: talks to one PM2 installation (binary, `PM2_HOME`, user). It parses
+  `jlist`, keeps only safe fields, and tails logs safely.
+- `server/src/agent/apps.ts`: turns an app spec into a PM2 ecosystem definition after filesystem
+  checks, then replaces and saves it.
+- `server/src/agent/server.ts`: the socket server, one JSON request per connection.
+- `server/src/agent-client.ts`: the panel's client. `routes/apps.ts` exposes the HTTP API.
+- `server/src/secretbox.ts` + `apps-store.ts`: apps and their sealed environment in SQLite.
 
-The web process must never gain a "run this command as root" capability (NFR 7.1).
+Rules for future privileged features (Nginx, Certbot, backups):
+
+1. Add a **named action** to `spec.ts` with typed parameters. Never accept a command string.
+2. Validate again in the agent; write files atomically into root-owned locations; run the tool's
+   own check (`nginx -t`) and restore the previous file on failure (FR-07, BR-05).
+3. Return only what the UI needs; never return secrets.
+4. Audit the call in the panel with actor, parameters (redacted) and outcome.
+5. Cover it with tests against a fake tool and, where possible, an end-to-end CI job.
 
 ## Request lifecycle
 

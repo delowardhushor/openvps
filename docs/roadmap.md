@@ -13,12 +13,14 @@ server metrics.
 
 ## Phase 2: Application management
 
-- Register Node.js applications (name, directory, runtime, start command)
-- Encrypted environment variables
-- PM2 integration: list, start, stop, restart and reload, status, restarts, logs
-- Git deployments: repository and branch, deploy keys, dependency install, validated build steps,
-  release directories, health check, automatic rollback, deployment history
-- Privileged helper with a narrow, audited action set (see [architecture](architecture.md#privileged-operations-phase-2))
+**v0.2 ✅**: register Node.js applications (name, directory, runtime, start command), encrypted
+environment variables, PM2 integration (list, start, stop, restart, reload, status, restarts, logs)
+for both root's existing apps and apps run by the unprivileged `ovapps` user, and the privileged
+agent with a narrow, audited action set.
+
+**v0.3 (next)**: Git deployments with repository and branch, per-app deploy keys, dependency
+install, validated build steps, release directories, health check, automatic rollback and
+deployment history.
 
 **Exit criteria:** a user can deploy and manage a Node.js application through the interface.
 

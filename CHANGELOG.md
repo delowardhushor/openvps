@@ -7,6 +7,36 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.2.0] — Phase 2a: Applications
+
+### Added
+- **Applications page.** Lists PM2 processes with status, CPU, memory, uptime and restarts,
+  with start/stop/restart/reload and live output/error logs.
+- **Existing root PM2 apps** are detected (npm or nvm installs) and can be controlled and their
+  logs read. OpenVPS never creates root processes or changes their configuration
+  (`agent.manageRootPm2` makes them read-only).
+- **New applications** run as the unprivileged `ovapps` user under OpenVPS's bundled PM2:
+  npm script or entry file, choice of installed Node.js, arguments, cluster mode with instances,
+  and a memory restart limit. Code lives under `/srv/apps`.
+- **Encrypted environment variables** (AES-256-GCM, key separate from the database), write-only
+  in the UI, never logged; `.env` paste import.
+- **OpenVPS agent** (`openvps-agent.service`): the only root component. It accepts a fixed set of
+  validated actions over a Unix socket that only the panel can reach. It refuses symlinked or
+  foreign-owned log files, never spawns a PM2 daemon by accident, and serialises changes.
+- `openvps-apps.service` keeps the apps PM2 running across reboots.
+- `sudo openvps provision`: idempotent setup/repair of the above, run automatically by install
+  and upgrade.
+- Dashboard **Applications** card with running/stopped/errored counts.
+- CI end-to-end test with real systemd and real PM2.
+
+### Upgrading from 0.1
+Run `sudo openvps upgrade`, then **once** `sudo openvps provision`. The 0.1 upgrader
+doesn't know about the new services; later upgrades run it automatically.
+
+### Fixed
+- Installer: certificate creation on hosts with long hostnames; reuse of a leftover `openvps` group;
+  failures now name the command that failed.
+
 ## [0.1.0] — Phase 1: Foundation
 
 ### Added
@@ -30,5 +60,6 @@ breaking changes; they will always be called out here.
 - Versioned SQLite schema migrations.
 - Documentation, CI workflow, release workflow and issue templates.
 
-[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.0
 [0.1.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.1.0

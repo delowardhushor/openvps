@@ -309,6 +309,8 @@ ${C_B}OpenVPS will make these changes:${C_0}
   - store data in $DATA
   - install and start systemd service 'openvps' on port $PORT (HTTPS)
   - install the admin command $BIN
+  - create user 'ovapps' and /srv/apps for applications you add in OpenVPS, with its own PM2
+  - install the root-only helper service openvps-agent (fixed, audited actions only)
 EOF
   if ((OPEN_FW)); then echo "  - allow TCP $PORT in ufw if ufw is active"; fi
   echo
@@ -463,6 +465,10 @@ main() {
   ok "Service is running"
   INSTALL_DONE=1
   configure_firewall
+  # Application management (agent, apps user, PM2). A failure here leaves the panel working.
+  if [[ -f "$RELEASE_DIR/scripts/provision.sh" ]]; then
+    bash "$RELEASE_DIR/scripts/provision.sh" || warn "Application management setup failed. Fix the issue above, then run: sudo openvps provision"
+  fi
 
   local token
   token="$("$BIN" setup-token 2>/dev/null || true)"
@@ -485,6 +491,7 @@ ${token:+  Setup token:   ${C_B}${token}${C_0}
     sudo openvps status            sudo systemctl status openvps
     sudo openvps setup-token       journalctl -u openvps -f
     sudo openvps upgrade           sudo openvps uninstall
+    sudo openvps provision         (repair application management)
 EOF
   if [[ "${FIREWALL_NOTE:-0}" == 1 ]]; then
     printf '\n  %sufw is active and does not allow port %s yet.%s Allow it (ideally only from your IP):\n' "$C_Y" "$PORT" "$C_0"

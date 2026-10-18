@@ -6,9 +6,9 @@ OpenVPS gives you a secure web dashboard for the server it runs on, so you can s
 repeating the same SSH commands. It is built for developers, freelancers and small
 teams running Node.js applications on Ubuntu.
 
-> **Status: early development (v0.1, Phase 1 — Foundation).** Installation,
-> secure sign-in, and live server monitoring work today. Application management, Git
-> deployments, Nginx/SSL and backups are on the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.2).** Installation, secure sign-in, live server
+> monitoring and **Node.js application management with PM2** work today. Git deployments
+> come in v0.3; Nginx/SSL and backups are on the [roadmap](docs/roadmap.md).
 
 ## What works today
 
@@ -22,6 +22,10 @@ teams running Node.js applications on Ubuntu.
 - **Live server dashboard.** CPU (per core), load, memory, swap, disks, network
   throughput, uptime, OS details and systemd service status, with "last updated"
   and stale-data indicators.
+- **Applications (PM2).** See and control the apps root already runs with PM2 (start, stop,
+  restart, reload, logs) without changing their configuration. Add new Node.js apps that run as an
+  unprivileged user with their own PM2, encrypted write-only environment variables, cluster
+  mode, memory limits and live logs.
 - **Activity log.** Sign-ins and administrative actions, with secrets redacted.
 - **Local recovery CLI.** `openvps reset-password`, `unlock`, `revoke-sessions`,
   `setup-token`, `backup-db` and more.
@@ -35,7 +39,9 @@ teams running Node.js applications on Ubuntu.
   "run any command" API; external programs come from a short allowlist, called
   without a shell.
 - **Least privilege.** The panel runs as an unprivileged `openvps` user inside a
-  hardened systemd sandbox. Phase 1 needs no root privileges at all.
+  hardened systemd sandbox. The only root component is a small agent that accepts a fixed
+  list of validated actions over a local socket only the panel can reach. Apps you add run as
+  the unprivileged `ovapps` user.
 - **Doesn't fight your server.** OpenVPS uses its own private Node.js runtime and
   never modifies your system Node.js, Nginx, PM2 or firewall policy unless you ask.
 - **Self-hosted, private by default.** No external account and no telemetry. Your
@@ -66,6 +72,7 @@ sudo openvps status                 # version, config, accounts
 sudo openvps setup-token            # show the first-run token again
 sudo openvps reset-password admin   # forgot your password
 sudo openvps upgrade                # update to the latest release
+sudo openvps provision              # set up / repair application management
 sudo openvps uninstall              # remove (keeps data unless --purge)
 journalctl -u openvps -f            # logs
 ```
@@ -75,6 +82,7 @@ journalctl -u openvps -f            # logs
 | Topic | |
 |---|---|
 | [Installation](docs/installation.md) | Requirements, options, first login, firewall |
+| [Applications](docs/applications.md) | Managing Node.js apps with PM2 |
 | [Configuration](docs/configuration.md) | Every setting in `/etc/openvps/config.json` |
 | [Upgrading](docs/upgrading.md) | Upgrade procedure and automatic rollback |
 | [Uninstalling](docs/uninstalling.md) | What is removed and what is kept |

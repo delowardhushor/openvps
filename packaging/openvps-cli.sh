@@ -10,7 +10,7 @@ APP="$PREFIX/current"
 export OPENVPS_CONFIG="${OPENVPS_CONFIG:-/etc/openvps/config.json}"
 
 case "${1:-}" in
-  upgrade|uninstall)
+  upgrade|uninstall|provision)
     if [ "$(id -u)" -ne 0 ]; then
       echo "This command needs root: sudo openvps $*" >&2
       exit 1

@@ -80,10 +80,10 @@ describe('database', () => {
   test('migrations apply once and are idempotent', () => {
     const db = openMemoryDb();
     const r1 = migrate(db);
-    assert.deepEqual(r1.applied, [1]);
+    assert.deepEqual(r1.applied, [1, 2]);
     const r2 = migrate(db);
     assert.deepEqual(r2.applied, []);
-    assert.equal(currentSchemaVersion(db), 1);
+    assert.equal(currentSchemaVersion(db), 2);
   });
 
   test('refuses a database newer than the build', () => {
@@ -99,10 +99,11 @@ describe('database', () => {
     assert.throws(() =>
       migrate(db, [
         { version: 1, name: 'initial', sql: '' },
-        { version: 2, name: 'broken', sql: 'CREATE TABLE t2 (x); THIS IS NOT SQL;' },
+        { version: 2, name: 'apps', sql: '' },
+        { version: 3, name: 'broken', sql: 'CREATE TABLE t2 (x); THIS IS NOT SQL;' },
       ]),
     );
-    assert.equal(currentSchemaVersion(db), 1);
+    assert.equal(currentSchemaVersion(db), 2);
     assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name = 't2'").get(), undefined);
   });
 });
@@ -203,6 +204,18 @@ describe('config', () => {
     assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { listen: { port: 70000 } }), ConfigError);
     assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { services: ['nginx; rm -rf /'] }), ConfigError);
     assert.throws(() => loadConfig({ OPENVPS_CONFIG: '/does/not/exist.json' }), ConfigError);
+  });
+  test('agent and apps settings are validated', () => {
+    const c = loadConfig({ OPENVPS_CONFIG: undefined }, {});
+    assert.equal(c.agent.socket, '/run/openvps-agent/agent.sock');
+    assert.deepEqual(c.apps.allowedRoots, ['/srv/apps']);
+    assert.equal(c.apps.user, 'ovapps');
+    for (const bad of [['/'], ['/etc'], ['/root/apps'], ['/var/lib/openvps'], ['relative'], []]) {
+      assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { apps: { allowedRoots: bad } }), ConfigError, JSON.stringify(bad));
+    }
+    assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { apps: { user: 'Root; rm' } }), ConfigError);
+    assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { agent: { rootPm2Bin: 'pm2' } }), ConfigError);
+    assert.equal(loadConfig({ OPENVPS_DEV: '1' }, { apps: { allowedRoots: ['/home/deploy/apps'] } }).apps.allowedRoots[0], '/home/deploy/apps');
   });
 });
 

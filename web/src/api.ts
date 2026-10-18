@@ -147,6 +147,86 @@ export interface SessionInfo {
   userAgent: string | null;
 }
 
+export type Owner = 'root' | 'apps';
+export type ControlOp = 'start' | 'stop' | 'restart' | 'reload';
+
+export interface ProcessInfo {
+  name: string;
+  owner: Owner;
+  status: 'online' | 'stopped' | 'errored' | 'launching' | 'stopping' | 'one-launch-status' | 'unknown';
+  instances: number;
+  pids: number[];
+  cpu: number;
+  memoryBytes: number;
+  startedAt: number | null;
+  restarts: number;
+  unstableRestarts: number;
+  execMode: 'fork' | 'cluster' | 'unknown';
+  script: string | null;
+  cwd: string | null;
+  interpreter: string | null;
+  nodeVersion: string | null;
+}
+
+export interface Pm2Status {
+  available: boolean;
+  reason: string | null;
+  version: string | null;
+}
+
+export interface Runtime {
+  path: string;
+  version: string;
+  npmCli: string | null;
+}
+
+export interface AgentInfo {
+  version: string;
+  root: Pm2Status & { manage: boolean };
+  apps: Pm2Status & { user: string | null };
+  runtimes: Runtime[];
+  allowedRoots: string[];
+}
+
+export interface AppSpec {
+  name: string;
+  cwd: string;
+  startType: 'file' | 'npm';
+  script: string | null;
+  npmScript: string | null;
+  args: string[];
+  runtime: string;
+  instances: number;
+  execMode: 'fork' | 'cluster';
+  maxMemoryMb: number | null;
+}
+
+export interface AppRecord {
+  id: number;
+  name: string;
+  spec: AppSpec;
+  envKeys: string[];
+  createdAt: number;
+  updatedAt: number;
+  lastAppliedAt: number | null;
+  lastError: string | null;
+}
+
+export interface ProcessesResponse {
+  agent: { available: boolean; reason: string | null };
+  root: { status: Pm2Status; processes: ProcessInfo[] };
+  apps: { status: Pm2Status; processes: ProcessInfo[] };
+  registered: { name: string; spec: AppSpec; envKeys: string[]; lastError: string | null; process: ProcessInfo | null }[];
+  fetchedAt: number;
+}
+
+export interface LogsResponse {
+  path: string | null;
+  lines: string[];
+  stream: 'out' | 'err';
+  fetchedAt: number;
+}
+
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean; tokenIssued: boolean }>('GET', '/api/setup/status'),
   setup: (setupToken: string, username: string, password: string) =>
@@ -167,4 +247,19 @@ export const api = {
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') p.set(k, String(v));
     return request<{ entries: AuditEntry[]; nextBefore: number | null }>('GET', `/api/audit?${p}`);
   },
+  agent: () => request<{ available: true; info: AgentInfo } | { available: false; reason: string }>('GET', '/api/agent'),
+  processes: () => request<ProcessesResponse>('GET', '/api/processes'),
+  control: (owner: Owner, name: string, op: ControlOp) =>
+    request<ProcessInfo>('POST', `/api/processes/${owner}/${encodeURIComponent(name)}/${op}`, {}),
+  logs: (owner: Owner, name: string, stream: 'out' | 'err', lines: number) =>
+    request<LogsResponse>('GET', `/api/processes/${owner}/${encodeURIComponent(name)}/logs?stream=${stream}&lines=${lines}`),
+  apps: () => request<{ apps: AppRecord[] }>('GET', '/api/apps'),
+  app: (name: string) => request<{ app: AppRecord }>('GET', `/api/apps/${encodeURIComponent(name)}`),
+  createApp: (spec: AppSpec, env: Record<string, string>, start: boolean) =>
+    request<{ app: AppRecord; process: ProcessInfo | null }>('POST', '/api/apps', { spec, env, start }),
+  updateApp: (name: string, spec: AppSpec, restart: boolean) =>
+    request<{ app: AppRecord; process: ProcessInfo | null }>('PUT', `/api/apps/${encodeURIComponent(name)}`, { spec, restart }),
+  updateEnv: (name: string, set: Record<string, string>, unset: string[], restart: boolean) =>
+    request<{ app: AppRecord; process: ProcessInfo | null }>('PUT', `/api/apps/${encodeURIComponent(name)}/env`, { set, unset, restart }),
+  deleteApp: (name: string) => request<{ ok: true }>('DELETE', `/api/apps/${encodeURIComponent(name)}`),
 };

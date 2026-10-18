@@ -35,6 +35,16 @@ A complete example is in `/opt/openvps/current/packaging/config.example.json`.
 | `metrics.historyMinutes` | `60` | Length of the in-memory history used for charts. |
 | `services` | `["nginx","ssh","cron","ufw"]` | systemd units shown on the dashboard (read-only status). |
 | `audit.retentionDays` | `180` | Activity log entries older than this are deleted. |
+| `agent.manageRootPm2` | `true` | Allow start/stop/restart/reload of root's existing PM2 apps. `false` = read-only. |
+| `agent.rootPm2Bin` | `null` | Path to root's `pm2`. `null` = use what `openvps provision` detected (`/etc/openvps/agent.json`). |
+| `agent.rootPm2Home` | `/root/.pm2` | Root's `PM2_HOME`. |
+| `agent.socket` | `/run/openvps-agent/agent.sock` | Socket between panel and agent. |
+| `apps.allowedRoots` | `["/srv/apps"]` | Directories application code may live in (system directories are refused). |
+| `apps.runtimeCandidates` | `/usr/bin/node`, `/usr/local/bin/node`, `/opt/openvps/node/bin/node` | Node.js binaries offered as app runtimes (if runnable by `ovapps`). |
+| `apps.user`, `apps.home`, `apps.pm2Bin`, `apps.pm2Node`, `apps.service`, `apps.specDir` | see example | Set by the installer; change only if you know why. |
+
+The agent reads the same file. After changing `agent.*` or `apps.*`, run
+`sudo systemctl restart openvps-agent openvps`.
 
 ## Environment variables
 
@@ -58,3 +68,9 @@ These override the file and are mostly for development and containers:
 | `/var/lib/openvps/openvps.db` | `openvps 0600` | SQLite database (accounts, sessions, settings, activity) |
 | `/var/lib/openvps/backups/` | `openvps 0750` | Pre-upgrade database snapshots |
 | `/var/lib/openvps/setup-token` | `openvps 0600` | Exists only until setup is completed |
+| `/var/lib/openvps/secret.key` | `openvps 0600` | Key that encrypts app environment variables. **Back it up with the database.** |
+| `/etc/openvps/agent.json` | `root:openvps 0640` | Written by `openvps provision` (detected root PM2) |
+| `/run/openvps-agent/agent.sock` | `root:openvps 0660` | Agent socket (directory `0750`) |
+| `/var/lib/openvps-agent/apps/` | `root:ovapps 0750` | Generated PM2 definitions of your apps (contain env values) |
+| `/var/lib/ovapps/.pm2/` | `ovapps` | PM2 home of the apps user: logs, process list |
+| `/srv/apps/` | `ovapps` | Your application code |

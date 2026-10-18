@@ -55,7 +55,7 @@ export function registerSystemRoutes(r: Router, app: AppContext): void {
       activity: { recent, failures },
       // Modules arriving in later phases; the UI renders them as "coming soon".
       modules: {
-        applications: { available: false, phase: 2 },
+        applications: { available: true, phase: 2 },
         deployments: { available: false, phase: 2 },
         sites: { available: false, phase: 3 },
         certificates: { available: false, phase: 3 },

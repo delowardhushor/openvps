@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { api, ApiError, type HistoryPoint, type Overview, type ServiceStatus, type Snapshot, type AuditEntry } from '../api';
 import { Meter, Sparkline } from '../components/Charts';
 import { actionLabel, ago, bytes, duration, pct, rate, reasonLabel } from '../format';
+import type { ProcessesResponse } from '../api';
 
 const OVERVIEW_REFRESH_MS = 30_000;
 
@@ -24,7 +25,7 @@ function useNow(ms = 1000): number {
   return now;
 }
 
-export function DashboardPage({ onHost }: { onHost?: (hostname: string) => void }) {
+export function DashboardPage({ onHost, navigate }: { onHost?: (hostname: string) => void; navigate?: (p: string) => void }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -278,13 +279,7 @@ export function DashboardPage({ onHost }: { onHost?: (hostname: string) => void 
 
         <div className="col">
           <Services services={overview.services} />
-          <section className="card">
-            <h2>Applications</h2>
-            <p className="muted">
-              Node.js applications, PM2 processes and Git deployments arrive in phase 2. Deployment and backup results will
-              appear here.
-            </p>
-          </section>
+          <AppsSummary navigate={navigate} />
           <RecentActivity entries={overview.activity.recent} now={now} />
         </div>
       </div>
@@ -349,6 +344,79 @@ export function RecentActivity({ entries, now }: { entries: AuditEntry[]; now: n
             </li>
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+function AppsSummary({ navigate }: { navigate?: (p: string) => void }) {
+  const [data, setData] = useState<ProcessesResponse | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const load = () =>
+      api
+        .processes()
+        .then((d) => {
+          setData(d);
+          setFailed(false);
+        })
+        .catch(() => setFailed(true));
+    void load();
+    const t = setInterval(() => document.visibilityState !== 'hidden' && void load(), 15_000);
+    return () => clearInterval(t);
+  }, []);
+  const all = data ? [...data.apps.processes, ...data.root.processes] : [];
+  const count = (s: string) => all.filter((p) => p.status === s).length;
+  const missing = data ? data.registered.filter((a) => !a.process).length : 0;
+  const problems = all.filter((p) => p.status === 'errored' || p.unstableRestarts > 0);
+  const go = (e: ReactMouseEvent) => {
+    e.preventDefault();
+    navigate?.('/apps');
+  };
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Applications</h2>
+        <a href="/apps" onClick={go} className="small">
+          Manage →
+        </a>
+      </div>
+      {failed && <p className="muted">Could not load applications.</p>}
+      {data && !data.agent.available && (
+        <p className="muted">
+          The agent is not running. On the server, run <code>sudo openvps provision</code>.
+        </p>
+      )}
+      {data?.agent.available && (
+        <>
+          <div className="app-counts">
+            <div>
+              <span className="app-count">{count('online')}</span>
+              <span className="muted small">running</span>
+            </div>
+            <div>
+              <span className="app-count">{count('stopped') + missing}</span>
+              <span className="muted small">stopped</span>
+            </div>
+            <div>
+              <span className={`app-count ${count('errored') ? 'text-fail' : ''}`}>{count('errored')}</span>
+              <span className="muted small">errored</span>
+            </div>
+          </div>
+          {problems.length > 0 && (
+            <ul className="activity section-gap-sm">
+              {problems.slice(0, 4).map((p) => (
+                <li key={`${p.owner}:${p.name}`}>
+                  <span className="dot dot-failure" aria-hidden="true" />
+                  <span className="act-main">
+                    {p.name} <span className="muted">· {p.status === 'errored' ? 'errored' : `${p.unstableRestarts} unstable restarts`}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {all.length === 0 && <p className="muted small section-gap-sm">No PM2 processes yet.</p>}
+        </>
       )}
     </section>
   );

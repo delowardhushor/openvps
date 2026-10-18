@@ -57,8 +57,8 @@ export function registerSystemRoutes(r: Router, app: AppContext): void {
       modules: {
         applications: { available: true, phase: 2 },
         deployments: { available: false, phase: 2 },
-        sites: { available: false, phase: 3 },
-        certificates: { available: false, phase: 3 },
+        sites: { available: true, phase: 3 },
+        certificates: { available: true, phase: 3 },
         backups: { available: false, phase: 4 },
       },
     };

@@ -4,23 +4,45 @@ import { createStaticHandler, securityHeaders } from './http/static.ts';
 import { registerAuthRoutes, sessionCookieName } from './routes/auth.ts';
 import { registerSystemRoutes } from './routes/system.ts';
 import { registerAppRoutes } from './routes/apps.ts';
+import { registerSiteRoutes } from './routes/sites.ts';
 import type { AppContext } from './context.ts';
 
 /** Header the SPA sends on every state-changing request. See checkCsrf. */
 export const CSRF_HEADER = 'x-openvps-request';
 
-function clientIp(req: IncomingMessage, trustProxy: boolean): string {
-  if (trustProxy) {
-    const xff = req.headers['x-forwarded-for'];
-    const first = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim();
-    if (first) return first.slice(0, 64);
-  }
+function peer(req: IncomingMessage): string {
   return (req.socket.remoteAddress ?? 'unknown').replace(/^::ffff:/, '');
+}
+
+/**
+ * Requests from the local machine are trusted as coming from Nginx (the panel's own
+ * domain is served through it), as are all requests when `trustProxy` is set.
+ */
+function viaProxy(req: IncomingMessage, trustProxy: boolean): boolean {
+  const p = peer(req);
+  return trustProxy || p === '127.0.0.1' || p === '::1';
+}
+
+/**
+ * The visitor's address. Behind a proxy we use X-Real-IP or the last X-Forwarded-For
+ * entry: those are written by the proxy itself, unlike earlier entries, which the
+ * client can forge.
+ */
+export function clientIp(req: IncomingMessage, trustProxy: boolean): string {
+  if (viaProxy(req, trustProxy)) {
+    const real = req.headers['x-real-ip'];
+    const realIp = (Array.isArray(real) ? real[0] : real)?.trim();
+    if (realIp && /^[0-9a-fA-F:.]{2,45}$/.test(realIp)) return realIp;
+    const xff = req.headers['x-forwarded-for'];
+    const last = (Array.isArray(xff) ? xff.join(',') : xff)?.split(',').at(-1)?.trim();
+    if (last && /^[0-9a-fA-F:.]{2,45}$/.test(last)) return last;
+  }
+  return peer(req);
 }
 
 function isSecure(req: IncomingMessage, app: AppContext): boolean {
   if ((req.socket as { encrypted?: boolean }).encrypted) return true;
-  return app.config.trustProxy && String(req.headers['x-forwarded-proto'] ?? '').split(',')[0]?.trim() === 'https';
+  return viaProxy(req, app.config.trustProxy) && String(req.headers['x-forwarded-proto'] ?? '').split(',')[0]?.trim() === 'https';
 }
 
 /**
@@ -31,7 +53,7 @@ function isSecure(req: IncomingMessage, app: AppContext): boolean {
  *  2. If the browser reports Sec-Fetch-Site, it must be same-origin.
  *  3. If an Origin header is present, its host must match the Host header.
  */
-function checkCsrf(ctx: Ctx & { trustProxy: boolean }): void {
+function checkCsrf(ctx: Ctx & { viaProxy: boolean }): void {
   const h = ctx.req.headers;
   if (h[CSRF_HEADER] !== '1') throw new HttpError(403, 'csrf', 'Missing request verification header.');
   const site = h['sec-fetch-site'];
@@ -45,7 +67,7 @@ function checkCsrf(ctx: Ctx & { trustProxy: boolean }): void {
       throw new HttpError(403, 'csrf', 'Invalid Origin header.');
     }
     const allowed = [h.host];
-    if (ctx.trustProxy && typeof h['x-forwarded-host'] === 'string') allowed.push(h['x-forwarded-host'].split(',')[0]!.trim());
+    if (ctx.viaProxy && typeof h['x-forwarded-host'] === 'string') allowed.push(h['x-forwarded-host'].split(',')[0]!.trim());
     if (!allowed.includes(host)) throw new HttpError(403, 'csrf', 'Cross-origin request blocked.');
   } else if (origin === 'null') {
     throw new HttpError(403, 'csrf', 'Cross-origin request blocked.');
@@ -57,6 +79,7 @@ export function createApp(app: AppContext) {
   registerAuthRoutes(router, app);
   registerSystemRoutes(router, app);
   registerAppRoutes(router, app);
+  registerSiteRoutes(router, app);
   const serveStatic = createStaticHandler(app.config.webRoot);
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -102,7 +125,7 @@ export function createApp(app: AppContext) {
       ctx.params = m.params;
 
       const mutating = !['GET', 'HEAD'].includes(method);
-      if (mutating) checkCsrf({ ...ctx, trustProxy: app.config.trustProxy });
+      if (mutating) checkCsrf({ ...ctx, viaProxy: viaProxy(req, app.config.trustProxy) });
 
       // Resolve the session on every API request so even public routes (logout) see it.
       const token = ctx.cookies[sessionCookieName(secure)];

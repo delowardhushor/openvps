@@ -15,7 +15,13 @@ sudo openvps uninstall --purge    # remove everything
 | `/srv/apps` (your code) | kept | **kept** |
 | Final archive of config and data in `/root/openvps-final-<timestamp>.tar.gz` | — | created (skip with `--no-backup`) |
 
-Never touched: root's PM2 and its apps, your code in `/srv/apps`, Nginx, system Node.js, firewall rules.
+Never touched: root's PM2 and its apps, your code in `/srv/apps`, system Node.js, firewall rules.
+
+**Sites keep working.** Nginx sites created in OpenVPS (`/etc/nginx/sites-*/openvps-*.conf`) and
+their certificates stay, and Certbot keeps renewing them (the challenge folder
+`/var/lib/openvps-agent/acme` is kept for that, even with `--purge`). Only the panel's own domain
+site is removed, since it would point at nothing. To remove the rest by hand:
+`sudo rm /etc/nginx/sites-enabled/openvps-* /etc/nginx/sites-available/openvps-* && sudo systemctl reload nginx`.
 If you allowed the panel port in ufw, the script reminds you to remove that rule.
 
 Reinstalling after a plain `uninstall` reuses the kept configuration and accounts.

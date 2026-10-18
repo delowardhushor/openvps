@@ -80,10 +80,10 @@ describe('database', () => {
   test('migrations apply once and are idempotent', () => {
     const db = openMemoryDb();
     const r1 = migrate(db);
-    assert.deepEqual(r1.applied, [1, 2]);
+    assert.deepEqual(r1.applied, [1, 2, 3]);
     const r2 = migrate(db);
     assert.deepEqual(r2.applied, []);
-    assert.equal(currentSchemaVersion(db), 2);
+    assert.equal(currentSchemaVersion(db), 3);
   });
 
   test('refuses a database newer than the build', () => {
@@ -100,10 +100,11 @@ describe('database', () => {
       migrate(db, [
         { version: 1, name: 'initial', sql: '' },
         { version: 2, name: 'apps', sql: '' },
-        { version: 3, name: 'broken', sql: 'CREATE TABLE t2 (x); THIS IS NOT SQL;' },
+        { version: 3, name: 'sites', sql: '' },
+        { version: 4, name: 'broken', sql: 'CREATE TABLE t2 (x); THIS IS NOT SQL;' },
       ]),
     );
-    assert.equal(currentSchemaVersion(db), 2);
+    assert.equal(currentSchemaVersion(db), 3);
     assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name = 't2'").get(), undefined);
   });
 });

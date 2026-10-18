@@ -7,6 +7,8 @@ import { Pm2Target } from './agent/pm2.ts';
 import { AppsManager } from './agent/apps.ts';
 import { RuntimeDetector } from './agent/runtimes.ts';
 import { createDispatcher, listenAgent, type AgentDeps } from './agent/server.ts';
+import { SitesManager, type SitesOptions } from './agent/sites.ts';
+import { firstExisting, runTool } from './agent/exec.ts';
 import { VERSION } from './version.ts';
 
 /**
@@ -38,6 +40,85 @@ function systemctlStart(unit: string): () => Promise<void> {
         err ? reject(err) : setTimeout(resolve, 500),
       );
     });
+}
+
+const SYSTEMCTL = '/usr/bin/systemctl';
+
+function hasSystemd(): boolean {
+  return firstExisting(['/run/systemd/system']) !== null;
+}
+
+/** Reload Nginx through systemd when available, falling back to the nginx binary. */
+function nginxControl(nginxBin: string, nginxConf: string): Pick<SitesOptions, 'reload' | 'isRunning' | 'renewalTimer'> {
+  const pidAlive = (): boolean => {
+    try {
+      const pid = Number(readFileSync('/run/nginx.pid', 'utf8').trim());
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const isRunning = async () => {
+    if (hasSystemd()) {
+      const r = await runTool(SYSTEMCTL, ['is-active', '--quiet', 'nginx'], { timeoutMs: 5000 });
+      if (r.code === 0) return true;
+    }
+    return pidAlive();
+  };
+  // A reload only signals the master; give it a moment to start workers with the new
+  // configuration so that "done" in the panel means the change is live.
+  const settle = () => new Promise((r) => setTimeout(r, 400));
+  return {
+    isRunning,
+    reload: async () => {
+      const running = await isRunning();
+      if (hasSystemd()) {
+        const r = await runTool(SYSTEMCTL, [running ? 'reload' : 'start', 'nginx'], { timeoutMs: 30_000 });
+        if (r.code === 0) {
+          await settle();
+          return { ok: true, message: running ? 'Nginx reloaded.' : 'Nginx started.' };
+        }
+      }
+      const r = await runTool(nginxBin, running ? ['-c', nginxConf, '-s', 'reload'] : ['-c', nginxConf], { timeoutMs: 30_000 });
+      if (r.code === 0) await settle();
+      return r.code === 0
+        ? { ok: true, message: running ? 'Nginx reloaded.' : 'Nginx started.' }
+        : { ok: false, message: `Configuration saved, but Nginx could not be ${running ? 'reloaded' : 'started'}: ${r.stderr.trim().slice(0, 300)}` };
+    },
+    renewalTimer: async () => {
+      if (!hasSystemd()) return null;
+      for (const t of ['certbot.timer', 'snap.certbot.renew.timer']) {
+        const r = await runTool(SYSTEMCTL, ['is-active', '--quiet', t], { timeoutMs: 5000 });
+        if (r.code === 0) return t;
+      }
+      return null;
+    },
+  };
+}
+
+export function buildSites(config: Config, overrides: Partial<SitesOptions> = {}): SitesManager {
+  const s = config.sites;
+  return new SitesManager({
+    nginxBin: s.nginxBin,
+    nginxConf: s.nginxConf,
+    sitesAvailable: s.sitesAvailable,
+    sitesEnabled: s.sitesEnabled,
+    confD: s.confD,
+    letsencryptDir: s.letsencryptDir,
+    certbotBin: s.certbotBin ?? firstExisting(['/usr/bin/certbot', '/snap/bin/certbot', '/usr/local/bin/certbot']),
+    acmeRoot: s.acmeRoot,
+    staticRoots: s.staticRoots,
+    panel: { port: config.listen.port, tls: config.tls.enabled },
+    version: VERSION,
+    acmeServer: s.acmeServer,
+    certbotEnv: s.acmeCaBundle ? { REQUESTS_CA_BUNDLE: s.acmeCaBundle } : {},
+    dnsServers: s.dnsServers,
+    checkPort: 80,
+    ipv6: null,
+    ...nginxControl(s.nginxBin, s.nginxConf),
+    ...overrides,
+  });
 }
 
 export function buildAgent(config: Config, log: Logger, overrides: Partial<AgentDeps> = {}): AgentDeps {
@@ -98,6 +179,7 @@ export function buildAgent(config: Config, log: Logger, overrides: Partial<Agent
     appsUser,
     manager,
     runtimes,
+    sites: buildSites(config),
     ...overrides,
   };
 }

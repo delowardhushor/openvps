@@ -17,13 +17,27 @@ import {
 } from '../agent/spec.ts';
 import type { AppContext } from '../context.ts';
 
+const STATUS_BY_CODE: Record<string, number> = {
+  invalid: 400,
+  not_found: 404,
+  forbidden: 403,
+  conflict: 409,
+  pm2_unavailable: 503,
+  nginx_missing: 503,
+  certbot_missing: 503,
+  nginx_layout: 422,
+  nginx_broken: 422,
+  nginx_test_failed: 422,
+  certbot_failed: 422,
+};
+
 /** Translate agent failures into API errors the UI can show. */
-function agentError(e: unknown): never {
+export function agentError(e: unknown): never {
   if (e instanceof AgentUnavailableError) {
     throw new HttpError(503, 'agent_unavailable', 'The OpenVPS agent is not running. On the server, run: sudo openvps provision');
   }
   if (e instanceof AgentCallError) {
-    const status = e.code === 'invalid' ? 400 : e.code === 'not_found' ? 404 : e.code === 'forbidden' ? 403 : e.code === 'pm2_unavailable' ? 503 : 502;
+    const status = STATUS_BY_CODE[e.code] ?? 502;
     throw new HttpError(status, e.code, e.message, e.field ? { field: e.field } : undefined);
   }
   if (e instanceof SpecError) throw new HttpError(400, 'invalid_field', e.message, { field: e.field });

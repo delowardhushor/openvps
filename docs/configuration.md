@@ -42,8 +42,16 @@ A complete example is in `/opt/openvps/current/packaging/config.example.json`.
 | `apps.allowedRoots` | `["/srv/apps"]` | Directories application code may live in (system directories are refused). |
 | `apps.runtimeCandidates` | `/usr/bin/node`, `/usr/local/bin/node`, `/opt/openvps/node/bin/node` | Node.js binaries offered as app runtimes (if runnable by `ovapps`). |
 | `apps.user`, `apps.home`, `apps.pm2Bin`, `apps.pm2Node`, `apps.service`, `apps.specDir` | see example | Set by the installer; change only if you know why. |
+| `sites.staticRoots` | `["/srv/apps","/var/www"]` | Folders static sites and SPAs may be served from (system directories are refused). |
+| `sites.nginxBin`, `sites.nginxConf` | `/usr/sbin/nginx`, `/etc/nginx/nginx.conf` | Nginx binary and main config (used for `nginx -t`). |
+| `sites.sitesAvailable`, `sites.sitesEnabled`, `sites.confD` | Ubuntu layout | Where site files are written (`conf.d` when `sites-enabled` isn't included). |
+| `sites.certbotBin` | `null` | Path to `certbot`. `null` = first of `/usr/bin`, `/snap/bin`, `/usr/local/bin`. |
+| `sites.letsencryptDir` | `/etc/letsencrypt` | Certbot's directory, read for the certificate list. |
+| `sites.acmeRoot` | `/var/lib/openvps-agent/acme` | Folder served at `/.well-known/acme-challenge/`. |
+| `sites.acmeServer`, `sites.acmeCaBundle` | `null` | A different ACME directory URL and CA bundle, e.g. Let's Encrypt staging or a test CA. |
+| `sites.dnsServers` | `null` | DNS servers for the pre-flight check (`null` = the system resolver). |
 
-The agent reads the same file. After changing `agent.*` or `apps.*`, run
+The agent reads the same file. After changing `agent.*`, `apps.*` or `sites.*`, run
 `sudo systemctl restart openvps-agent openvps`.
 
 ## Environment variables

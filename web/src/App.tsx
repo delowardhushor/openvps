@@ -8,6 +8,7 @@ import { ActivityPage } from './pages/ActivityPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AppsPage } from './pages/AppsPage';
 import { AppDetailPage, NewAppPage } from './pages/AppDetailPages';
+import { CertificatesPage, NewSitePage, SiteDetailPage, SitesPage } from './pages/SitesPages';
 
 type State =
   | { kind: 'loading' }
@@ -112,11 +113,12 @@ function Page({ path, user, onHost, navigate }: { path: string; user: User; onHo
   if (path.startsWith('/activity')) return <ActivityPage />;
   if (path.startsWith('/settings')) return <SettingsPage user={user} />;
   if (path.startsWith('/deployments'))
-    return <ComingSoon title="Deployments" phase={2}>Deploy from a Git branch with deploy keys, dependency install, build steps, release history and rollback. Coming in v0.3.</ComingSoon>;
-  if (path.startsWith('/sites'))
-    return <ComingSoon title="Sites & domains" phase={3}>Create validated Nginx reverse-proxy sites and attach domains to applications.</ComingSoon>;
-  if (path.startsWith('/certificates'))
-    return <ComingSoon title="SSL certificates" phase={3}>Issue and renew Let&apos;s Encrypt certificates and watch expiry dates.</ComingSoon>;
+    return <ComingSoon title="Deployments" phase={2}>Deploy from a Git branch with deploy keys, dependency install, build steps, release history and rollback. Coming in v0.4.</ComingSoon>;
+  if (path === '/sites' || path === '/sites/') return <SitesPage navigate={navigate} />;
+  if (path === '/sites/new') return <NewSitePage navigate={navigate} />;
+  const sm = /^\/sites\/([a-z][a-z0-9-]*)$/.exec(path);
+  if (sm) return <SiteDetailPage key={path} name={sm[1]!} navigate={navigate} />;
+  if (path.startsWith('/certificates')) return <CertificatesPage navigate={navigate} />;
   if (path.startsWith('/backups'))
     return <ComingSoon title="Backups" phase={4}>Schedule MongoDB and file backups to off-server storage, with retention and tested restores.</ComingSoon>;
   return (

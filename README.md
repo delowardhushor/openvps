@@ -6,9 +6,10 @@ OpenVPS gives you a secure web dashboard for the server it runs on, so you can s
 repeating the same SSH commands. It is built for developers, freelancers and small
 teams running Node.js applications on Ubuntu.
 
-> **Status: early development (v0.2).** Installation, secure sign-in, live server
-> monitoring and **Node.js application management with PM2** work today. Git deployments
-> come in v0.3; Nginx/SSL and backups are on the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.3).** Installation, secure sign-in, live server
+> monitoring, **Node.js application management with PM2**, and **domains with free HTTPS
+> certificates** for apps, React/static sites and the panel itself work today. Git
+> deployments come in v0.4; backups are on the [roadmap](docs/roadmap.md).
 
 ## What works today
 
@@ -26,6 +27,11 @@ teams running Node.js applications on Ubuntu.
   restart, reload, logs) without changing their configuration. Add new Node.js apps that run as an
   unprivileged user with their own PM2, encrypted write-only environment variables, cluster
   mode, memory limits and live logs.
+- **Sites, domains and SSL.** Put a domain in front of an app (reverse proxy with WebSockets),
+  a single-page app build such as a React admin panel, a static website, or the panel itself.
+  Configs are generated from validated settings, checked with `nginx -t` and rolled back on
+  failure; DNS and port 80 are checked before asking Let's Encrypt for a certificate, which
+  Certbot then renews automatically. Hand-made Nginx sites are shown read-only and never changed.
 - **Activity log.** Sign-ins and administrative actions, with secrets redacted.
 - **Local recovery CLI.** `openvps reset-password`, `unlock`, `revoke-sessions`,
   `setup-token`, `backup-db` and more.
@@ -83,6 +89,7 @@ journalctl -u openvps -f            # logs
 |---|---|
 | [Installation](docs/installation.md) | Requirements, options, first login, firewall |
 | [Applications](docs/applications.md) | Managing Node.js apps with PM2 |
+| [Sites & SSL](docs/sites.md) | Domains, static sites and SPAs, HTTPS certificates |
 | [Configuration](docs/configuration.md) | Every setting in `/etc/openvps/config.json` |
 | [Upgrading](docs/upgrading.md) | Upgrade procedure and automatic rollback |
 | [Uninstalling](docs/uninstalling.md) | What is removed and what is kept |

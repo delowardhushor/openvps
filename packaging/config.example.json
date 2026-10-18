@@ -58,5 +58,22 @@
       "/usr/local/bin/node",
       "/opt/openvps/node/bin/node"
     ]
+  },
+  "sites": {
+    "staticRoots": [
+      "/srv/apps",
+      "/var/www"
+    ],
+    "nginxBin": "/usr/sbin/nginx",
+    "nginxConf": "/etc/nginx/nginx.conf",
+    "sitesAvailable": "/etc/nginx/sites-available",
+    "sitesEnabled": "/etc/nginx/sites-enabled",
+    "confD": "/etc/nginx/conf.d",
+    "certbotBin": null,
+    "letsencryptDir": "/etc/letsencrypt",
+    "acmeRoot": "/var/lib/openvps-agent/acme",
+    "acmeServer": null,
+    "acmeCaBundle": null,
+    "dnsServers": null
   }
 }

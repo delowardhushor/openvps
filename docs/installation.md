@@ -80,7 +80,11 @@ The installer never enables ufw or changes existing rules unless you pass `--ope
 
 ## Using your own domain and certificate
 
-Until certificate management arrives in Phase 3, you can:
+The easiest way is **Sites & domains → New site → OpenVPS panel** in the panel itself: Nginx
+serves the panel on your domain with a free Let's Encrypt certificate (see
+[Sites & SSL](sites.md#the-panel-on-its-own-domain)). After that you can close port 7443.
+
+Alternatively:
 
 - Point `tls.certFile`/`tls.keyFile` at an existing certificate (for example one issued by
   Certbot). The `openvps` group must be able to read the key. Then

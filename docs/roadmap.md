@@ -18,20 +18,22 @@ environment variables, PM2 integration (list, start, stop, restart, reload, stat
 for both root's existing apps and apps run by the unprivileged `ovapps` user, and the privileged
 agent with a narrow, audited action set.
 
-**v0.3 (next)**: Git deployments with repository and branch, per-app deploy keys, dependency
-install, validated build steps, release directories, health check, automatic rollback and
-deployment history.
+**v0.4 (next)**: Git deployments with repository and branch, per-app deploy keys, dependency
+install, validated build steps (including building React/static sites into their site folder),
+release directories, health check, automatic rollback and deployment history.
 
 **Exit criteria:** a user can deploy and manage a Node.js application through the interface.
 
-## Phase 3: Web infrastructure
+## Phase 3: Web infrastructure ✅ (v0.3)
 
-- Nginx reverse-proxy sites per application, generated from templates
-- `nginx -t` validation before reload; automatic restore on failure
-- Detect existing sites and require explicit adoption
-- Let's Encrypt via Certbot: prerequisite checks (DNS, port 80), issuance, renewal monitoring,
-  expiry warnings
-- Option to serve the panel itself on a domain with a trusted certificate
+- Nginx sites generated from validated settings: reverse proxy to an app (with WebSockets),
+  single-page apps (React, Vue, Angular builds), static websites, and the panel itself
+- `nginx -t` before and after every change, with an exact restore on failure
+- Existing hand-made sites detected and shown read-only; domain conflicts refused
+- Let's Encrypt via Certbot: DNS and port-80 checks before issuance, automatic renewal by
+  Certbot's timer, expiry warnings on the dashboard
+
+Later: adopting hand-made sites into OpenVPS, wildcard certificates (DNS-01), custom Nginx snippets.
 
 **Exit criteria:** an application is reachable on its domain over HTTPS.
 

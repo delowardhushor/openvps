@@ -71,15 +71,24 @@ jobs:
           sudo openvps setup-token >/dev/null
       - name: Applications end-to-end (real systemd + real PM2)
         run: bash scripts/ci/apps-e2e.sh
+      - name: Sites and certificates end-to-end (real Nginx + Certbot + Pebble test CA)
+        run: bash scripts/ci/sites-e2e.sh
       - name: Reinstall-upgrade with rollback path exercised
         run: sudo openvps upgrade --package release/openvps-*.tar.gz --reinstall --yes
       - name: Uninstall
         run: |
           sudo openvps uninstall --purge --yes --no-backup
           test ! -e /opt/openvps
+          # Websites keep running; only the panel's own domain is removed.
+          test -e /etc/nginx/sites-enabled/openvps-admin.conf
+          test ! -e /etc/nginx/sites-enabled/openvps-panel.conf
+          test -d /var/lib/openvps-agent/acme
+          sudo nginx -t
       - name: Service logs on failure
         if: failure()
         run: |
           sudo journalctl -u openvps -n 100 --no-pager || true
           sudo journalctl -u openvps-agent -n 100 --no-pager || true
           sudo journalctl -u openvps-apps -n 100 --no-pager || true
+          sudo tail -n 80 /var/log/letsencrypt/letsencrypt.log || true
+          sudo journalctl -u pebble -n 50 --no-pager || true

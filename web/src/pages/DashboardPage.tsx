@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import { api, ApiError, type HistoryPoint, type Overview, type ServiceStatus, type Snapshot, type AuditEntry } from '../api';
 import { Meter, Sparkline } from '../components/Charts';
 import { actionLabel, ago, bytes, duration, pct, rate, reasonLabel } from '../format';
-import type { ProcessesResponse } from '../api';
+import type { CertInfo, ProcessesResponse } from '../api';
+import { CertBadge } from '../components/SiteBits';
 
 const OVERVIEW_REFRESH_MS = 30_000;
 
@@ -242,6 +243,11 @@ export function DashboardPage({ onHost, navigate }: { onHost?: (hostname: string
               </dd>
               <dt>Panel access</dt>
               <dd>
+                {window.location.protocol === 'https:' && window.location.port !== String(overview.panel.port) && (
+                  <>
+                    HTTPS via <span className="mono">{window.location.hostname}</span> ·{' '}
+                  </>
+                )}
                 {overview.panel.tls ? 'HTTPS' : <span className="text-warn">HTTP (unencrypted)</span>} on port {overview.panel.port}
               </dd>
             </dl>
@@ -280,6 +286,7 @@ export function DashboardPage({ onHost, navigate }: { onHost?: (hostname: string
         <div className="col">
           <Services services={overview.services} />
           <AppsSummary navigate={navigate} />
+          <CertSummary navigate={navigate} />
           <RecentActivity entries={overview.activity.recent} now={now} />
         </div>
       </div>
@@ -417,6 +424,56 @@ function AppsSummary({ navigate }: { navigate?: (p: string) => void }) {
           )}
           {all.length === 0 && <p className="muted small section-gap-sm">No PM2 processes yet.</p>}
         </>
+      )}
+    </section>
+  );
+}
+
+function CertSummary({ navigate }: { navigate?: (p: string) => void }) {
+  const [certs, setCerts] = useState<CertInfo[] | null>(null);
+  const [sites, setSites] = useState(0);
+  useEffect(() => {
+    api
+      .sites()
+      .then((d) => {
+        setCerts(d.certificates);
+        setSites(d.sites.length);
+      })
+      .catch(() => setCerts(null));
+  }, []);
+  if (!certs || (certs.length === 0 && sites === 0)) return null;
+  const soon = certs.filter((c) => c.daysLeft < 21).sort((a, b) => a.daysLeft - b.daysLeft);
+  const go = (to: string) => (e: ReactMouseEvent) => {
+    e.preventDefault();
+    navigate?.(to);
+  };
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Sites &amp; certificates</h2>
+        <a href="/sites" onClick={go('/sites')} className="small">
+          Manage →
+        </a>
+      </div>
+      <p className="muted small">
+        {sites} site{sites === 1 ? '' : 's'} · {certs.length} certificate{certs.length === 1 ? '' : 's'}
+      </p>
+      {soon.length === 0 ? (
+        <p className="small text-ok">All certificates are valid for at least 3 more weeks.</p>
+      ) : (
+        <ul className="activity section-gap-sm">
+          {soon.slice(0, 4).map((c) => (
+            <li key={c.path}>
+              <span className="act-main">
+                <a href="/certificates" onClick={go('/certificates')}>
+                  {c.domains[0]}
+                </a>{' '}
+                <CertBadge cert={c} />
+                {c.renewable && c.daysLeft >= 0 && <span className="muted small"> · auto-renew should handle it</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

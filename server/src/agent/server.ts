@@ -5,6 +5,7 @@ import type { Logger } from '../logger.ts';
 import { AgentError, type Pm2Target } from './pm2.ts';
 import type { AppsManager } from './apps.ts';
 import type { RuntimeDetector } from './runtimes.ts';
+import type { SitesManager } from './sites.ts';
 import { parseRequest, SpecError, type AgentInfo, type AgentRequest, type AgentResponse, type Owner } from './spec.ts';
 
 export const MAX_REQUEST_BYTES = 256 * 1024;
@@ -18,6 +19,7 @@ export interface AgentDeps {
   appsUser: string | null;
   manager: AppsManager;
   runtimes: RuntimeDetector;
+  sites: SitesManager;
 }
 
 /** Serialises state-changing PM2 operations so two requests never interleave. */
@@ -81,6 +83,35 @@ export function createDispatcher(d: AgentDeps) {
         d.log.info('app remove', { name: req.params.name });
         await lock.run(() => d.manager.remove(req.params.name));
         return { removed: true };
+      }
+      case 'nginx.status':
+        return d.sites.status();
+      case 'cert.list':
+        return d.sites.certificates();
+      case 'site.config':
+        return { content: await d.sites.render(req.params.spec), current: d.sites.readSiteConfig(req.params.spec.name) };
+      case 'site.apply': {
+        const { spec } = req.params;
+        d.log.info('site apply', { name: spec.name, type: spec.type, domains: spec.domains });
+        return lock.run(() => d.sites.apply(spec));
+      }
+      case 'site.remove': {
+        d.log.info('site remove', { name: req.params.name, deleteCertificate: req.params.deleteCertificate });
+        return lock.run(() => d.sites.remove(req.params.name, req.params.deleteCertificate));
+      }
+      case 'site.states':
+        return req.params.specs.map((s) => d.sites.siteState(s.name, s));
+      case 'site.check':
+        return d.sites.check(req.params.name, req.params.domains);
+      case 'cert.issue': {
+        const { spec, email } = req.params;
+        d.log.info('certificate issue', { name: spec.name, domains: spec.domains });
+        return lock.run(async () => {
+          const certificate = await d.sites.issue(spec, email);
+          // Re-render the site so it starts serving HTTPS with the new certificate.
+          const applied = await d.sites.apply(spec);
+          return { certificate, ...applied };
+        });
       }
     }
   };

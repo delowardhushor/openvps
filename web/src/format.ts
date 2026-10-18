@@ -65,6 +65,11 @@ const ACTIONS: Record<string, string> = {
   'app.update': 'Application settings changed',
   'app.env_update': 'Environment variables changed',
   'app.delete': 'Application deleted',
+  'site.create': 'Site created',
+  'site.update': 'Site changed',
+  'site.delete': 'Site deleted',
+  'certificate.issue': 'Certificate request',
+  'settings.certificates': 'Certificate email changed',
 };
 
 export function actionLabel(a: string): string {
@@ -82,6 +87,10 @@ const REASONS: Record<string, string> = {
 
 export function reasonLabel(r: unknown): string | null {
   return typeof r === 'string' ? (REASONS[r] ?? r.replace(/_/g, ' ')) : null;
+}
+
+export function shortDate(ts: number): string {
+  return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export function shortUserAgent(ua: string | null): string {

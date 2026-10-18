@@ -87,6 +87,17 @@ are verified with SHA-256 checksums. CI runs `npm audit` on the build tooling.
 refusal to overwrite an existing install, automatic rollback of a partial install, and no
 changes to Nginx, PM2, system Node.js or firewall policy unless requested.
 
+**Sites and certificates (v0.3).** Site settings are validated twice (panel and agent) against
+strict patterns: domains are plain hostnames (no wildcards, IPs, spaces or `;`), names are
+`[a-z0-9-]`, static folders must be real directories under `sites.staticRoots` (checked with the
+symlinks resolved), and Nginx serves them with `disable_symlinks if_not_owner`, so a symlink
+planted later by the apps user cannot expose files such as `/etc`. Config files are rendered from these values only, never from free text. Every
+change runs `nginx -t` first and is reverted exactly if Nginx rejects it, and nothing is changed
+while the existing configuration is broken. OpenVPS writes only `openvps-*` files and refuses
+domains that hand-made sites already serve. Generated sites deny dotfiles (`.env`, `.git`).
+Certbot runs with a fixed argument list; the panel never passes command strings. When the panel
+is served through its own Nginx site, it trusts `X-Real-IP` only from loopback connections.
+
 ## Known limitations (planned)
 
 - No multi-factor authentication yet (planned with team accounts).
@@ -96,12 +107,13 @@ changes to Nginx, PM2, system Node.js or firewall policy unless requested.
 - PM2 keeps a running app's environment in `ovapps`' PM2 files; the encryption protects
   OpenVPS's copy, not PM2's.
 - Rate-limit counters are in memory and reset when the service restarts.
-- The self-signed certificate triggers a browser warning. Use your own certificate or the
-  Phase 3 certificate manager.
+- The self-signed certificate triggers a browser warning. Serve the panel on a domain from
+  **Sites & domains** to get a trusted certificate.
 
 ## Operator checklist
 
 - [ ] Restrict the panel port to your IPs (provider firewall or ufw), or use an SSH tunnel.
+      Once the panel has its own HTTPS domain, close the panel port entirely.
 - [ ] Use a long, unique passphrase for the administrator.
 - [ ] Verify the certificate fingerprint on first connection, or install a trusted certificate.
 - [ ] Keep Ubuntu updated (`unattended-upgrades`) and run `sudo openvps upgrade` regularly.

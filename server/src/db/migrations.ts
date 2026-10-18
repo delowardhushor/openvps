@@ -75,4 +75,18 @@ export const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'sites',
+    sql: `
+      CREATE TABLE sites (
+        id          INTEGER PRIMARY KEY,
+        name        TEXT NOT NULL UNIQUE,
+        spec        TEXT NOT NULL,              -- JSON SiteSpec
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        last_error  TEXT
+      );
+    `,
+  },
 ];

@@ -7,6 +7,40 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.3.0] — Phase 3: Sites, domains and SSL
+
+### Added
+- **Sites & domains page.** Put a domain in front of:
+  - an **app** on a local port (reverse proxy with forwarding and WebSocket headers),
+  - a **single-page app** build such as a React/Vite admin panel (client-side routes fall back
+    to `index.html`, which is never cached; fingerprinted assets are cached for 30 days),
+  - a **static website** folder,
+  - the **OpenVPS panel** itself, so it can be reached on a domain with a trusted certificate.
+- **Free HTTPS with Let's Encrypt.** Before requesting a certificate, OpenVPS checks that every
+  domain resolves and reaches this server on port 80 (avoiding Let's Encrypt's failed-validation
+  limits), then issues it with Certbot, switches the site to HTTPS with an HTTP→HTTPS redirect,
+  and leaves renewal to Certbot's timer. Optional HSTS and upload size limit.
+- **SSL certificates page** listing every certificate on the server (OpenVPS's, Certbot's and
+  any other used by Nginx) with days left, renewal status and which sites use it, plus the Let's
+  Encrypt account email. The dashboard warns about certificates expiring within 21 days.
+- **Existing Nginx sites** are listed read-only; OpenVPS never changes them and refuses to
+  create a site for a domain they already serve.
+- Every change is checked with `nginx -t` and restored exactly if Nginx rejects it. OpenVPS does
+  nothing while the existing configuration is broken. On Nginx before 1.25.1, HTTP/2 is only
+  enabled when other sites on port 443 use it (avoiding "protocol options redefined").
+- `sites.*` configuration (static folders, Nginx/Certbot paths, alternative ACME server).
+- CI: end-to-end test with real Nginx, Certbot and Pebble (Let's Encrypt's test CA), including
+  renewal through Certbot's own path.
+
+### Changed
+- `openvps provision` prepares `/var/lib/openvps-agent/acme` and reports whether Nginx and
+  Certbot are installed. It runs automatically on upgrade.
+- The agent's systemd sandbox may now write `/etc/nginx` and `/etc/letsencrypt`.
+- When requests come from Nginx on the same server, the panel uses `X-Real-IP` for the client
+  address (rate limits, activity log) and honours `X-Forwarded-Proto` for secure cookies.
+- `uninstall` keeps websites created in OpenVPS running and removes only the panel's own site.
+- Git deployments move to v0.4.
+
 ## [0.2.1]
 
 ### Fixed

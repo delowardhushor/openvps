@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Server } from 'node:net';
 import { loadConfig } from '../src/config.ts';
-import { buildAgent } from '../src/agent.ts';
+import { buildAgent, buildSites } from '../src/agent.ts';
+import { execFileSync } from 'node:child_process';
 import { createDispatcher, listenAgent } from '../src/agent/server.ts';
 import { AgentClient } from '../src/agent-client.ts';
 import type { AppSpec } from '../src/agent/spec.ts';
@@ -24,7 +25,7 @@ export interface AgentFixture {
 }
 
 /** Start a real agent (unprivileged) on a temp socket, wired to the fake pm2. */
-export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?: boolean } = {}): Promise<AgentFixture> {
+export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?: boolean; sites?: boolean; buildSites?: (config: ReturnType<typeof loadConfig>) => ReturnType<typeof buildSites> } = {}): Promise<AgentFixture> {
   chmodSync(FAKE_PM2, 0o755);
   const dir = mkdtempSync(join(tmpdir(), 'openvps-agent-'));
   const rootHome = join(dir, 'root-pm2');
@@ -73,7 +74,9 @@ export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?:
       },
     },
   );
-  const deps = buildAgent(config, silentLogger);
+  let deps = buildAgent(config, silentLogger);
+  if (opts.sites) deps = { ...deps, sites: sitesFixture(dir, config) };
+  if (opts.buildSites) deps = { ...deps, sites: opts.buildSites(config) };
   const server = await listenAgent(socket, null, createDispatcher(deps), silentLogger);
   return {
     dir,
@@ -103,3 +106,43 @@ export function helloSpec(appsRoot: string, over: Partial<AppSpec> = {}): AppSpe
   };
 }
 
+
+const FAKE_CERTBOT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-certbot.mjs');
+
+/** A private nginx config tree (validated with the real nginx binary) plus fake certbot. */
+function sitesFixture(dir: string, config: ReturnType<typeof loadConfig>) {
+  const n = join(dir, 'nginx');
+  for (const d of ['sites-available', 'sites-enabled', 'conf.d', 'le/live/thesportsarena.com', 'le/renewal', 'acme', 'logs']) {
+    mkdirSync(join(n, d), { recursive: true });
+  }
+  writeFileSync(join(n, 'nginx.conf'), `pid ${n}/nginx.pid;\nerror_log ${n}/logs/error.log;\nevents {}\nhttp {\n  include ${n}/sites-enabled/*;\n}\n`);
+  const live = join(n, 'le/live/thesportsarena.com');
+  execFileSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-days', '15', '-subj', '/CN=thesportsarena.com',
+    '-addext', 'subjectAltName=DNS:thesportsarena.com,DNS:www.thesportsarena.com', '-keyout', join(live, 'privkey.pem'), '-out', join(live, 'fullchain.pem')], { stdio: 'ignore' });
+  writeFileSync(join(n, 'sites-enabled', 'thesportsarena.com'),
+    `server {\n  listen 80;\n  server_name thesportsarena.com www.thesportsarena.com;\n  location / { proxy_pass http://localhost:3000; }\n}\nserver {\n  listen 443 ssl;\n  server_name thesportsarena.com www.thesportsarena.com;\n  ssl_certificate ${live}/fullchain.pem;\n  ssl_certificate_key ${live}/privkey.pem;\n}\n`);
+  mkdirSync(join(dir, 'srv-apps', 'admin', 'dist'), { recursive: true });
+  writeFileSync(join(dir, 'srv-apps', 'admin', 'dist', 'index.html'), '<h1>admin</h1>');
+  chmodSync(FAKE_CERTBOT, 0o755);
+  const c = {
+    ...config,
+    sites: {
+      ...config.sites,
+      nginxConf: join(n, 'nginx.conf'),
+      sitesAvailable: join(n, 'sites-available'),
+      sitesEnabled: join(n, 'sites-enabled'),
+      confD: join(n, 'conf.d'),
+      letsencryptDir: join(n, 'le'),
+      certbotBin: FAKE_CERTBOT,
+      acmeRoot: join(n, 'acme'),
+      staticRoots: [join(dir, 'srv-apps')],
+    },
+  };
+  return buildSites(c, {
+    certbotEnv: { FAKE_LE_DIR: join(n, 'le') },
+    ipv6: false,
+    reload: async () => ({ ok: true, message: 'Nginx reloaded.' }),
+    isRunning: async () => true,
+    renewalTimer: async () => 'certbot.timer',
+  });
+}

@@ -26,8 +26,10 @@ StateDirectory=openvps-agent
 UMask=0077
 
 # Moderate sandboxing: the agent needs root's PM2 home (/root/.pm2) and runuser,
-# so /home and /root stay visible; the OS directories are read-only.
+# so /home and /root stay visible; the OS directories are read-only except the
+# Nginx and Let's Encrypt directories it manages sites and certificates in.
 ProtectSystem=full
+ReadWritePaths=-/etc/nginx -/etc/letsencrypt
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes

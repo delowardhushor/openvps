@@ -227,6 +227,97 @@ export interface LogsResponse {
   fetchedAt: number;
 }
 
+export type SiteType = 'proxy' | 'static' | 'spa' | 'panel';
+
+export interface SiteSpec {
+  name: string;
+  domains: string[];
+  type: SiteType;
+  upstreamPort: number | null;
+  root: string | null;
+  https: boolean;
+  forceHttps: boolean;
+  hsts: boolean;
+  maxBodyMb: number;
+}
+
+export interface CertInfo {
+  name: string | null;
+  path: string;
+  domains: string[];
+  issuer: string;
+  notBefore: number;
+  notAfter: number;
+  daysLeft: number;
+  managed: boolean;
+  renewable: boolean;
+  usedBy: string[];
+}
+
+export interface ExistingServer {
+  file: string;
+  serverNames: string[];
+  listens: string[];
+  ssl: boolean;
+  certificate: string | null;
+  proxyPass: string[];
+  root: string | null;
+}
+
+export interface NginxStatus {
+  installed: boolean;
+  version: string | null;
+  running: boolean;
+  configOk: boolean;
+  configError: string | null;
+  layout: 'sites' | 'confd' | null;
+  ipv6: boolean;
+  certbot: { installed: boolean; version: string | null; renewalTimer: string | null };
+  existing: ExistingServer[];
+}
+
+export interface SiteState {
+  name: string;
+  file: string;
+  enabled: boolean;
+  certificate: CertInfo | null;
+  httpsActive: boolean;
+}
+
+export interface SiteRecord {
+  name: string;
+  spec: SiteSpec;
+  createdAt: number;
+  updatedAt: number;
+  lastError: string | null;
+  state: SiteState | null;
+}
+
+export interface CheckResult {
+  domain: string;
+  addresses: string[];
+  dnsOk: boolean;
+  httpOk: boolean;
+  message: string;
+}
+
+export interface SitesOverview {
+  agent: { available: boolean; reason: string | null };
+  nginx: NginxStatus | null;
+  sites: SiteRecord[];
+  certificates: CertInfo[];
+  targets: { name: string; port: number | null }[];
+  panel: { port: number; tls: boolean };
+  certEmail: string | null;
+}
+
+export interface CertificateResult {
+  checks: CheckResult[] | null;
+  certificate: CertInfo | null;
+  certificateError: string | null;
+  state?: SiteState;
+}
+
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean; tokenIssued: boolean }>('GET', '/api/setup/status'),
   setup: (setupToken: string, username: string, password: string) =>
@@ -262,4 +353,22 @@ export const api = {
   updateEnv: (name: string, set: Record<string, string>, unset: string[], restart: boolean) =>
     request<{ app: AppRecord; process: ProcessInfo | null }>('PUT', `/api/apps/${encodeURIComponent(name)}/env`, { set, unset, restart }),
   deleteApp: (name: string) => request<{ ok: true }>('DELETE', `/api/apps/${encodeURIComponent(name)}`),
+  sites: () => request<SitesOverview>('GET', '/api/sites'),
+  createSite: (spec: SiteSpec, issueCertificate: boolean) =>
+    request<{ site: SiteRecord; state: SiteState; warnings: string[]; reload: string } & Partial<CertificateResult>>('POST', '/api/sites', {
+      spec,
+      issueCertificate,
+    }),
+  updateSite: (name: string, spec: SiteSpec) =>
+    request<{ site: SiteRecord; state: SiteState; warnings: string[]; reload: string }>('PUT', `/api/sites/${encodeURIComponent(name)}`, { spec }),
+  deleteSite: (name: string, deleteCertificate: boolean) =>
+    request<{ ok: true; certificateDeleted: boolean }>('DELETE', `/api/sites/${encodeURIComponent(name)}?deleteCertificate=${deleteCertificate ? 1 : 0}`),
+  checkSite: (name: string) => request<{ checks: CheckResult[] }>('POST', `/api/sites/${encodeURIComponent(name)}/check`, {}),
+  issueCertificate: (name: string, skipChecks = false) =>
+    request<CertificateResult>('POST', `/api/sites/${encodeURIComponent(name)}/certificate`, { skipChecks }),
+  siteConfig: (name: string) => request<{ content: string; current: string | null }>('GET', `/api/sites/${encodeURIComponent(name)}/config`),
+  certificates: () =>
+    request<{ available: boolean; certificates: CertInfo[]; certbot: NginxStatus['certbot'] | null; nginxInstalled: boolean }>('GET', '/api/certificates'),
+  certEmail: () => request<{ email: string | null }>('GET', '/api/settings/certificates'),
+  setCertEmail: (email: string) => request<{ email: string | null }>('PUT', '/api/settings/certificates', { email }),
 };

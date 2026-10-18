@@ -10,6 +10,7 @@ import { runAllowed, type Runner } from './system/exec.ts';
 import type { AppContext } from './context.ts';
 import { AgentClient } from './agent-client.ts';
 import { AppsStore } from './apps-store.ts';
+import { SitesStore } from './sites-store.ts';
 import { SecretBox } from './secretbox.ts';
 import { mkdirSync } from 'node:fs';
 
@@ -51,6 +52,7 @@ export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Pr
     run: opts.run ?? runAllowed,
     agent: opts.agent ?? new AgentClient(config.agent.socket),
     apps: new AppsStore(db, secrets(config.dataDir)),
+    sites: new SitesStore(db),
     startedAt: Date.now(),
   };
 }

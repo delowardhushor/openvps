@@ -9,6 +9,7 @@ import type { MetricsCollector, HostInfo } from './metrics/collector.ts';
 import type { Runner } from './system/exec.ts';
 import type { AgentClient } from './agent-client.ts';
 import type { AppsStore } from './apps-store.ts';
+import type { SitesStore } from './sites-store.ts';
 
 /** Shared services handed to route modules. */
 export interface AppContext {
@@ -25,5 +26,6 @@ export interface AppContext {
   run: Runner;
   agent: AgentClient;
   apps: AppsStore;
+  sites: SitesStore;
   startedAt: number;
 }

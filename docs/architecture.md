@@ -86,6 +86,29 @@ Rules for future privileged features (Nginx, Certbot, backups):
 4. Audit the call in the panel with actor, parameters (redacted) and outcome.
 5. Cover it with tests against a fake tool and, where possible, an end-to-end CI job.
 
+## Sites and certificates (v0.3)
+
+```
+ panel ──socket──▶ agent (root) ── writes /etc/nginx/sites-available/openvps-<name>.conf
+                                 ├─ nginx -t  → reload  (or restore the previous files exactly)
+                                 ├─ DNS + HTTP token check on port 80
+                                 └─ certbot certonly --webroot -w /var/lib/openvps-agent/acme
+                                                     --cert-name openvps-<name>
+                                                     --deploy-hook "systemctl reload nginx"
+```
+
+- `agent/sites-spec.ts`: the `SiteSpec` and its validation (strict domain, name and path rules),
+  shared by panel and agent. Nothing from the user reaches a config file unvalidated.
+- `agent/nginx-render.ts`: renders a site from a spec. Every site serves the ACME path; HTTPS
+  is added once a certificate exists.
+- `agent/nginx-parse.ts`: a small tokenizer/parser for Nginx's syntax, used to list existing
+  sites, detect domain conflicts and find which certificates are in use.
+- `agent/sites.ts`: status, apply/remove with undo, pre-flight checks, Certbot.
+- `routes/sites.ts` + `sites-store.ts`: the HTTP API and the site records in SQLite.
+
+OpenVPS owns only files named `openvps-*`. Renewal is left to Certbot's timer so that
+certificates keep renewing even when OpenVPS is stopped or removed.
+
 ## Request lifecycle
 
 1. Security headers are set on every response (CSP, frame denial, HSTS over TLS).

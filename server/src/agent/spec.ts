@@ -1,3 +1,5 @@
+import { DOMAIN, SITE_NAME, parseEmail, parseSiteSpec, type SiteSpec } from './sites-spec.ts';
+
 /**
  * Shared definitions for the panel <-> agent protocol and the validation of
  * application specs. Both sides validate: the panel to give good error
@@ -19,7 +21,15 @@ export type AgentRequest =
   | { action: 'pm2.control'; params: { owner: Owner; name: string; op: ControlOp } }
   | { action: 'pm2.logs'; params: { owner: Owner; name: string; stream: LogStream; lines: number } }
   | { action: 'app.apply'; params: { spec: AppSpec; env: Record<string, string>; start: boolean } }
-  | { action: 'app.remove'; params: { name: string } };
+  | { action: 'app.remove'; params: { name: string } }
+  | { action: 'nginx.status'; params?: Record<string, never> }
+  | { action: 'cert.list'; params?: Record<string, never> }
+  | { action: 'site.apply'; params: { spec: SiteSpec } }
+  | { action: 'site.remove'; params: { name: string; deleteCertificate: boolean } }
+  | { action: 'site.config'; params: { spec: SiteSpec } }
+  | { action: 'site.check'; params: { name: string; domains: string[] } }
+  | { action: 'cert.issue'; params: { spec: SiteSpec; email: string | null } }
+  | { action: 'site.states'; params: { specs: SiteSpec[] } };
 
 export type AgentAction = AgentRequest['action'];
 export const AGENT_ACTIONS: readonly AgentAction[] = [
@@ -29,6 +39,14 @@ export const AGENT_ACTIONS: readonly AgentAction[] = [
   'pm2.logs',
   'app.apply',
   'app.remove',
+  'nginx.status',
+  'cert.list',
+  'site.apply',
+  'site.remove',
+  'site.config',
+  'site.check',
+  'cert.issue',
+  'site.states',
 ];
 
 export type AgentResponse<T = unknown> =
@@ -243,6 +261,33 @@ export function parseRequest(input: unknown): AgentRequest {
       const name = p.name;
       if (typeof name !== 'string' || !APP_NAME.test(name)) throw new SpecError('name', 'Invalid app name.');
       return { action: 'app.remove', params: { name } };
+    }
+    case 'nginx.status':
+      return { action: 'nginx.status' };
+    case 'cert.list':
+      return { action: 'cert.list' };
+    case 'site.apply':
+      return { action: 'site.apply', params: { spec: parseSiteSpec(p.spec) } };
+    case 'site.config':
+      return { action: 'site.config', params: { spec: parseSiteSpec(p.spec) } };
+    case 'site.remove': {
+      if (typeof p.name !== 'string' || !SITE_NAME.test(p.name)) throw new SpecError('name', 'Invalid site name.');
+      return { action: 'site.remove', params: { name: p.name, deleteCertificate: p.deleteCertificate === true } };
+    }
+    case 'site.check': {
+      if (typeof p.name !== 'string' || !SITE_NAME.test(p.name)) throw new SpecError('name', 'Invalid site name.');
+      const domains = Array.isArray(p.domains) ? p.domains : [];
+      if (domains.length === 0 || domains.length > 10 || !domains.every((d) => typeof d === 'string' && DOMAIN.test(d))) {
+        throw new SpecError('domains', 'Invalid domain list.');
+      }
+      return { action: 'site.check', params: { name: p.name, domains: domains as string[] } };
+    }
+    case 'cert.issue':
+      return { action: 'cert.issue', params: { spec: parseSiteSpec(p.spec), email: parseEmail(p.email) } };
+    case 'site.states': {
+      const specs = Array.isArray(p.specs) ? p.specs : [];
+      if (specs.length > 200) throw new SpecError('specs', 'Too many sites.');
+      return { action: 'site.states', params: { specs: specs.map((s) => parseSiteSpec(s)) } };
     }
   }
 }

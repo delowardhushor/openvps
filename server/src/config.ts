@@ -58,6 +58,27 @@ export interface Config {
     /** Node.js binaries offered as app runtimes (if present and runnable by the apps user). */
     runtimeCandidates: string[];
   };
+  /** Domains, Nginx and certificates (read by the agent). */
+  sites: {
+    nginxBin: string;
+    nginxConf: string;
+    sitesAvailable: string;
+    sitesEnabled: string;
+    confD: string;
+    letsencryptDir: string;
+    /** certbot executable; null = auto-detect. */
+    certbotBin: string | null;
+    /** Served at /.well-known/acme-challenge/ for Let's Encrypt validation. */
+    acmeRoot: string;
+    /** Directories static sites may be served from. */
+    staticRoots: string[];
+    /** ACME directory URL; null = Let's Encrypt production. Set the staging URL to test. */
+    acmeServer: string | null;
+    /** CA bundle certbot should trust for acmeServer (testing with a private ACME server). */
+    acmeCaBundle: string | null;
+    /** DNS servers for pre-flight checks (testing); null = system resolver. */
+    dnsServers: string[] | null;
+  };
 }
 
 export const DEFAULT_CONFIG_PATH = '/etc/openvps/config.json';
@@ -107,6 +128,20 @@ function defaults(dev: boolean): Omit<Config, 'source'> {
       service: dev ? null : 'openvps-apps.service',
       specDir: dev ? resolve(process.cwd(), '.data', 'agent-specs') : '/var/lib/openvps-agent/apps',
       runtimeCandidates: ['/usr/bin/node', '/usr/local/bin/node', '/opt/openvps/node/bin/node'],
+    },
+    sites: {
+      nginxBin: '/usr/sbin/nginx',
+      nginxConf: '/etc/nginx/nginx.conf',
+      sitesAvailable: '/etc/nginx/sites-available',
+      sitesEnabled: '/etc/nginx/sites-enabled',
+      confD: '/etc/nginx/conf.d',
+      letsencryptDir: '/etc/letsencrypt',
+      certbotBin: null,
+      acmeRoot: '/var/lib/openvps-agent/acme',
+      staticRoots: ['/srv/apps', '/var/www'],
+      acmeServer: null,
+      acmeCaBundle: null,
+      dnsServers: null,
     },
   };
 }
@@ -216,6 +251,28 @@ export function validate(c: Omit<Config, 'source'>): void {
     throw new ConfigError('apps.runtimeCandidates must list at most 16 paths');
   }
   for (const r of c.apps.runtimeCandidates) abs('apps.runtimeCandidates[]', r);
+  for (const k of ['nginxBin', 'nginxConf', 'sitesAvailable', 'sitesEnabled', 'confD', 'letsencryptDir', 'acmeRoot'] as const) {
+    abs(`sites.${k}`, c.sites[k]);
+  }
+  absOrNull('sites.certbotBin', c.sites.certbotBin);
+  absOrNull('sites.acmeCaBundle', c.sites.acmeCaBundle);
+  if (c.sites.acmeServer !== null && (typeof c.sites.acmeServer !== 'string' || !/^https:\/\/[^\s]+$/.test(c.sites.acmeServer))) {
+    throw new ConfigError('sites.acmeServer must be an https:// URL or null');
+  }
+  if (!Array.isArray(c.sites.staticRoots) || c.sites.staticRoots.length === 0 || c.sites.staticRoots.length > 8) {
+    throw new ConfigError('sites.staticRoots must list 1 to 8 directories');
+  }
+  for (const r of c.sites.staticRoots) {
+    abs('sites.staticRoots[]', r);
+    if (r === '/' || /^\/(etc|root|boot|proc|sys|dev|usr|bin|sbin|lib|home)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps')) {
+      throw new ConfigError(`sites.staticRoots must not include system or private directories (${r})`);
+    }
+  }
+  if (c.sites.dnsServers !== null) {
+    if (!Array.isArray(c.sites.dnsServers) || c.sites.dnsServers.length > 4 || !c.sites.dnsServers.every((s) => typeof s === 'string' && /^[0-9a-fA-F:.\[\]]+$/.test(s))) {
+      throw new ConfigError('sites.dnsServers must be a list of IP[:port] or null');
+    }
+  }
 }
 
 /** Apply OPENVPS_* environment overrides (handy for development and containers). */

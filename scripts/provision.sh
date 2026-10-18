@@ -8,6 +8,7 @@
 #   - installs OpenVPS's bundled PM2 into /opt/openvps/pm2 for that user
 #   - finds the PM2 root already uses (if any) so the panel can show and control those apps
 #   - installs and starts openvps-apps.service (PM2 for ovapps) and openvps-agent.service
+#   - prepares the folder Let's Encrypt validation files are served from and checks for Nginx/Certbot
 # It never changes root's PM2 processes, their configuration, or files in /srv/apps.
 
 set -Eeuo pipefail
@@ -146,16 +147,36 @@ install_units() {
   : "$i"
 }
 
+provision_sites() {
+  # HTTP-01 challenge files for Let's Encrypt; Nginx (www-data) must be able to read them.
+  install -d -m 0755 -o root -g root "$AGENT_STATE" "$AGENT_STATE/acme" "$AGENT_STATE/acme/.well-known" "$AGENT_STATE/acme/.well-known/acme-challenge"
+  if command -v nginx >/dev/null 2>&1 || [[ -x /usr/sbin/nginx ]]; then
+    ok "Nginx found: sites and domains can be managed"
+  else
+    warn "Nginx is not installed, so sites and domains are unavailable. Install it with: sudo apt install nginx"
+  fi
+  local c found=""
+  for c in /usr/bin/certbot /snap/bin/certbot /usr/local/bin/certbot; do
+    if [[ -x "$c" ]]; then found="$c"; break; fi
+  done
+  if [[ -n "$found" ]]; then
+    ok "Certbot found ($found): HTTPS certificates can be issued"
+  else
+    warn "Certbot is not installed, so HTTPS certificates can't be issued. Install it with: sudo apt install certbot"
+  fi
+}
+
 main_provision() {
   [[ $EUID -eq 0 ]] || die "Run as root: sudo openvps provision"
   [[ -d "$ETC" ]] || die "OpenVPS is not installed ($ETC is missing)."
-  info "Setting up application management"
+  info "Setting up applications and sites"
   provision_user
   HAVE_PM2=1
   provision_pm2 || HAVE_PM2=0
   detect_root_pm2
+  provision_sites
   install_units
-  ok "Application management is ready"
+  ok "Applications and sites are ready"
 }
 
 main_provision "$@"

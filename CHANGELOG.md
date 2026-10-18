@@ -30,6 +30,13 @@ breaking changes; they will always be called out here.
 - `openvps provision` creates `/var/backups/openvps` (root only) and reports whether `mongodump`
   is installed. Uninstall always leaves backups in place.
 - Database migration 4 (backup plans, storage destinations, run history).
+- CI: `scripts/ci/backups-e2e.sh`, an end-to-end test of backups against a real S3-compatible
+  server, MongoDB with authentication and the MongoDB Database Tools, under the agent's systemd
+  sandbox.
+
+### Fixed
+- The finished backup file is now always created readable by root only (`0600`); before, this
+  relied on the agent service's `UMask`.
 
 ## [0.3.0] — Phase 3: Sites, domains and SSL
 

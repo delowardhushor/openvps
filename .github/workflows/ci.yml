@@ -73,6 +73,9 @@ jobs:
         run: bash scripts/ci/apps-e2e.sh
       - name: Sites and certificates end-to-end (real Nginx + Certbot + Pebble test CA)
         run: bash scripts/ci/sites-e2e.sh
+      - name: Backups end-to-end (real S3 server + MongoDB + the agent's systemd sandbox)
+        timeout-minutes: 15
+        run: bash scripts/ci/backups-e2e.sh
       - name: Reinstall-upgrade with rollback path exercised
         run: sudo openvps upgrade --package release/openvps-*.tar.gz --reinstall --yes
       - name: Uninstall
@@ -92,3 +95,5 @@ jobs:
           sudo journalctl -u openvps-apps -n 100 --no-pager || true
           sudo tail -n 80 /var/log/letsencrypt/letsencrypt.log || true
           sudo journalctl -u pebble -n 50 --no-pager || true
+          sudo journalctl -u ovps-ci-s3 -n 50 --no-pager || true
+          sudo journalctl -u mongod -n 50 --no-pager || true

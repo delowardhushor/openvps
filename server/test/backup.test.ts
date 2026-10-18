@@ -1,7 +1,7 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +103,8 @@ describe('backup engine', { skip: TAR ? false : 'tar not installed' }, () => {
     assert.equal(sidecar.members.length, 1);
     assert.equal(sidecar.members[0].file, 'files-site.tar.gz');
     assert.equal(sidecar.hostname, 'vps-test');
+    // Root-only whatever umask the service runs with.
+    assert.equal(statSync(file).mode & 0o777, 0o600);
 
     const outer = execFileSync(TAR!, ['-tf', file]).toString();
     assert.match(outer, /manifest\.json/);

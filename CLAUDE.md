@@ -17,7 +17,7 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
 | 2b Git deployments | v0.4 (next) | not started |
-| 4 Backups (MongoDB, files, S3) | v0.5 | ✅ built (unreleased); encryption, panel-DB backup and clean-VPS CI tests still open |
+| 4 Backups (MongoDB, files, S3) | v0.5 | ✅ built (unreleased); encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
 
 Details: `docs/roadmap.md`, `CHANGELOG.md`.
@@ -92,7 +92,7 @@ web/src/                             React (Vite) SPA, no UI library; plain CSS 
   api.ts (typed client), router.ts, format.ts, components/ (BackupBits, PlanForm, ...), pages/ (BackupsPages)
 scripts/install.sh|upgrade.sh|uninstall.sh|provision.sh   bash, shellcheck-clean (-S warning)
 scripts/package-release.sh           builds release/openvps-<ver>.tar.gz (+ bundled PM2) and .sha256
-scripts/ci/apps-e2e.sh, sites-e2e.sh real-systemd end-to-end tests run on GitHub runners
+scripts/ci/apps-e2e.sh, sites-e2e.sh, backups-e2e.sh   real-systemd end-to-end tests run on GitHub runners
 packaging/                           systemd units, openvps CLI wrapper, config.example.json
 docs/                                installation, applications, sites, backups, configuration, upgrading,
                                      uninstalling, recovery, architecture, security, development, roadmap
@@ -173,16 +173,25 @@ real Nginx + Certbot + Pebble test CA).
   push because real-nginx suites ran as non-root; fixed by skipping them when not root. The
   maintainer may need to move the `v0.3.0` tag to the fix commit and confirm CI is green,
   including the new "Sites and certificates end-to-end" job (not yet seen passing on GitHub).
-- **Backups (v0.5) are implemented but uncommitted/unreleased** (this session): agent engine
+- **Backups (v0.5) are implemented and committed (unreleased)**: agent engine
   (`agent/backup*.ts`, `s3.ts`), panel store/service/routes, Backups UI, docs/backups.md,
-  CHANGELOG "Unreleased", provision.sh creates `/var/backups/openvps`. Tested with fakes
-  (tar is real; mongodump/mongorestore and S3 are fakes) and manually in a browser against the dev
-  stack. **Not yet verified:** against a real S3 provider, real MongoDB tools, on a real VPS under
-  systemd (`ProtectSystem=full`), and no CI end-to-end job yet (idea: MinIO + mongodb-database-tools
-  in a `backups-e2e.sh`). Version bump (to 0.5.0 in 4 places) left to the maintainer at release.
+  CHANGELOG "Unreleased", provision.sh creates `/var/backups/openvps`. Unit/API tests use real tar
+  with fake mongodump/mongorestore and an in-memory S3.
+- **`scripts/ci/backups-e2e.sh`** (written, not yet seen passing on a GitHub runner) drives the
+  panel API against a real S3 server, an authenticated real MongoDB with the real Database Tools,
+  and the agent under its real systemd sandbox (ProtectSystem=full, UMask=0077): backup, quick and
+  Full check, damaged-copy refusal, folder + MongoDB restores (alternate/over/deleted folder, with
+  and without drop), forged-path refusals, multipart upload (70 MiB), busy/partial/failed runs
+  without secret leaks, retention (age + count, foreign files kept), scheduler. It passed in full
+  against the dev stack on macOS (`SKIP_SETUP=1`, see the script header); the Linux/systemd-only
+  parts (apt install of MongoDB, sandbox checks, journal scan, ownership as `ovapps`) are still
+  unproven. **MinIO is no longer downloadable** (binaries 410 Gone, Docker Hub repo removed, 2025),
+  so the script uses SeaweedFS 4.48 (pinned, SHA-256 checked) as the S3 server. The workflow step
+  must be added to `.github/workflows/ci.yml` by hand (after the sites step, before the reinstall).
 - Backup follow-ups not done: client-side encryption, a dashboard warning when the last backup
   failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
-  connection from the UI (API/agent accept per-source URIs; UI only uses the plan's).
+  connection from the UI (API/agent accept per-source URIs; UI only uses the plan's), testing
+  against real AWS S3/R2/B2 (only SeaweedFS is exercised).
 - **Next: v0.4 Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,
   deployment history; also building React/static sites into their site folder. Deploys are

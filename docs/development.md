@@ -25,7 +25,10 @@ for example `{"apps": {"pm2Bin": "/usr/local/lib/node_modules/pm2/bin/pm2", "pm2
 in `OPENVPS_CONFIG`, and use the same file for `dev:server`. Without one, the Applications page
 explains that PM2 is unavailable. The automated tests use a stand-in PM2
 (`server/test/fixtures/fake-pm2.mjs`); CI also runs a real-PM2 end-to-end test
-(`scripts/ci/apps-e2e.sh`).
+(`scripts/ci/apps-e2e.sh`); `sites-e2e.sh` covers Nginx, Certbot and a test CA, and
+`backups-e2e.sh` covers backups against a real S3 server, MongoDB and the MongoDB Database Tools
+under the agent's systemd sandbox. The backups script can also be run against a dev stack
+without root (`SKIP_SETUP=1`, variables listed at the top of the script).
 
 On macOS, metrics fall back to Node's `os` module: CPU, memory, load and root disk work;
 network and swap show as unavailable.

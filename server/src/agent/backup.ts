@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs';
+import { chmodSync, createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import type { Logger } from '../logger.ts';
 import { AgentError } from './pm2.ts';
@@ -393,6 +393,8 @@ export class BackupManager {
       const packed = join(stage, 'artifact.tar');
       const pr = await runTool(tar, ['-cf', packed, '-C', stage, 'manifest.json', ...members.map((m) => m.file)], { timeoutMs: TOOL_TIMEOUT });
       if (pr.code !== 0) throw new AgentError('backup_failed', `Could not pack the backup: ${tail(pr.stderr, 3)}`);
+      // Do not rely on the service's UMask: the finished file is readable by root only.
+      chmodSync(packed, 0o600);
       ctx.step('Calculating checksum');
       const { sha256, sizeBytes } = await hashFile(packed);
       const sidecar = JSON.stringify({ ...manifest, artifactSizeBytes: sizeBytes, artifactSha256: sha256 }, null, 2);

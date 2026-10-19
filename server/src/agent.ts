@@ -10,6 +10,7 @@ import { createDispatcher, listenAgent, type AgentDeps } from './agent/server.ts
 import { SitesManager, type SitesOptions } from './agent/sites.ts';
 import { BackupManager } from './agent/backup.ts';
 import { hostname } from 'node:os';
+import { dirname, join } from 'node:path';
 import { firstExisting, runTool } from './agent/exec.ts';
 import { VERSION } from './version.ts';
 
@@ -130,6 +131,7 @@ export function buildBackups(config: Config, log: Logger, overrides: Partial<Con
     fileRoots: b.fileRoots,
     tarBin: b.tarBin ?? firstExisting(['/usr/bin/tar', '/bin/tar', '/usr/local/bin/tar']),
     niceBin: firstExisting(['/usr/bin/nice', '/bin/nice']),
+    ioniceBin: firstExisting(['/usr/bin/ionice', '/bin/ionice']),
     mongodumpBin: b.mongodumpBin ?? firstExisting(['/usr/bin/mongodump', '/usr/local/bin/mongodump', '/snap/bin/mongodump']),
     mongorestoreBin: b.mongorestoreBin ?? firstExisting(['/usr/bin/mongorestore', '/usr/local/bin/mongorestore', '/snap/bin/mongorestore']),
     version: VERSION,
@@ -138,6 +140,9 @@ export function buildBackups(config: Config, log: Logger, overrides: Partial<Con
     ...overrides,
   });
 }
+
+/** Reuse a `pm2 jlist` result this long: each one starts a Node process (see docs/performance.md). */
+const PM2_LIST_CACHE_MS = 4000;
 
 export function buildAgent(config: Config, log: Logger, overrides: Partial<AgentDeps> = {}): AgentDeps {
   let state: AgentState = {};
@@ -163,6 +168,8 @@ export function buildAgent(config: Config, log: Logger, overrides: Partial<Agent
         // pm2 installed via nvm finds its node in the same bin directory.
         pathDirs: [rootBin.slice(0, rootBin.lastIndexOf('/'))],
         logOwnerUid: asRoot ? 0 : null,
+        listCacheMs: PM2_LIST_CACHE_MS,
+        compileCacheDir: join(dirname(config.agent.stateFile), 'compile-cache'),
       })
     : null;
 
@@ -176,6 +183,8 @@ export function buildAgent(config: Config, log: Logger, overrides: Partial<Agent
     pathDirs: config.apps.pm2Node ? [config.apps.pm2Node.slice(0, config.apps.pm2Node.lastIndexOf('/'))] : [],
     logOwnerUid: asRoot && appsAccount ? appsAccount.id : null,
     ensureDaemon: config.apps.service ? systemctlStart(config.apps.service) : undefined,
+    listCacheMs: PM2_LIST_CACHE_MS,
+    compileCacheDir: `${config.apps.home}/.cache/node-compile`,
   });
 
   const runtimes = new RuntimeDetector(config.apps.runtimeCandidates, appsUser);

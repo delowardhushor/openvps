@@ -124,15 +124,14 @@ export function registerAppRoutes(r: Router, app: AppContext): void {
     let root = empty;
     let apps = empty;
     try {
-      [root, apps] = await Promise.all([
-        call<ListResult>({ action: 'pm2.list', params: { owner: 'root' } }).catch((e: unknown) => {
-          if (e instanceof HttpError && e.code !== 'agent_unavailable') {
-            return { status: { available: false, reason: e.message, version: null }, processes: [] };
-          }
-          throw e;
-        }),
-        call<ListResult>({ action: 'pm2.list', params: { owner: 'apps' } }),
-      ]);
+      // One after the other: each listing starts a Node process, and two at once double the peak memory.
+      root = await call<ListResult>({ action: 'pm2.list', params: { owner: 'root' } }).catch((e: unknown) => {
+        if (e instanceof HttpError && e.code !== 'agent_unavailable') {
+          return { status: { available: false, reason: e.message, version: null }, processes: [] };
+        }
+        throw e;
+      });
+      apps = await call<ListResult>({ action: 'pm2.list', params: { owner: 'apps' } });
     } catch (e) {
       if (!(e instanceof HttpError && e.code === 'agent_unavailable')) throw e;
       available = false;

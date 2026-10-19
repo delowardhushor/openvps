@@ -178,9 +178,19 @@ MONGO_SERIES=8.0
 #   - mongod already there         -> only mongodb-database-tools; the existing server is not touched
 #   - mongodump already there      -> nothing
 # The server listens on 127.0.0.1 only and has no users; see docs/backups.md.
+# Total RAM in kB (0 when unknown). A MongoDB server idles at roughly 150-300 MB, which is too much
+# on a small VPS, so the server is only installed automatically on machines with enough memory.
+MONGOD_MIN_RAM_KB=1800000
+mem_total_kb() {
+  awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0
+}
+
 provision_mongodb() {
   if command -v mongodump >/dev/null 2>&1 && command -v mongorestore >/dev/null 2>&1; then
     ok "mongodump found: MongoDB backups are available"
+    if systemctl is-active --quiet mongod 2>/dev/null && (( $(mem_total_kb) > 0 && $(mem_total_kb) < MONGOD_MIN_RAM_KB )); then
+      info "A MongoDB server is running on this small server (it uses roughly 150-300 MB of RAM). If you do not need it: sudo systemctl disable --now mongod"
+    fi
     return 0
   fi
   if [[ "${OPENVPS_SKIP_MONGODB:-0}" == 1 ]]; then
@@ -208,6 +218,10 @@ provision_mongodb() {
     # MongoDB 5.0+ needs AVX on x86-64; the tools do not.
     pkg=mongodb-database-tools
     why="this CPU has no AVX support, which the MongoDB server needs"
+  elif [[ "${OPENVPS_MONGODB_SERVER:-0}" != 1 ]] && (( $(mem_total_kb) > 0 && $(mem_total_kb) < MONGOD_MIN_RAM_KB )); then
+    # Keep small servers lean: backups only need the tools. OPENVPS_MONGODB_SERVER=1 overrides this.
+    pkg=mongodb-database-tools
+    why="this server has under 2 GB of RAM, so no MongoDB server is installed (set OPENVPS_MONGODB_SERVER=1 to force it)"
   fi
 
   info "$why. Installing $pkg (MongoDB Community $MONGO_SERIES) from repo.mongodb.org"

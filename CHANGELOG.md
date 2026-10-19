@@ -7,6 +7,27 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+### Changed (lower CPU and memory use, mainly for small servers)
+- **MongoDB server is no longer installed on servers with under about 2 GB of RAM.** Only the
+  Database Tools (enough for backups) are installed there. `OPENVPS_MONGODB_SERVER=1` forces the
+  server. Existing installs are left alone; provision prints a hint if a MongoDB server runs on a
+  small machine.
+- **Fewer PM2 CLI starts.** The agent reuses a `pm2 jlist` result for 4 seconds, shares one run
+  between concurrent callers, and drops the cache on every start/stop/restart/delete/save. Log
+  viewing accepts a listing up to 30 seconds old (log paths only change on restart). The panel
+  lists the root and apps PM2 one after the other instead of at once (half the peak memory).
+  The PM2 CLI runs with Node's compile cache (`NODE_COMPILE_CACHE`) so each start costs less CPU.
+- **Slower background polling in the web UI:** the Applications list and app detail refresh every
+  10 s (was 5 s), the dashboard process card every 30 s (was 15 s). Hidden tabs still do not poll.
+- **Smaller panel and agent memory:** the units start Node with `--max-semi-space-size=1
+  --v8-pool-size=0` and a heap cap (160 MB panel, 128 MB agent). About 9 MB less after heavy use.
+- **Backup archives also run under `ionice`** (best-effort, lowest priority), in addition to
+  `nice`, so a big backup disturbs your apps less. It is skipped where the kernel refuses it.
+
+### Added
+- docs/performance.md: measured and estimated CPU, memory and disk use, and advice for small
+  servers.
+
 ## [0.5.1]
 
 ### Fixed

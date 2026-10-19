@@ -24,6 +24,8 @@ creates `/var/backups/openvps`, readable by root only. Then:
   - **MongoDB already installed** (any way): only `mongodb-database-tools` is added. Your server,
     its version and its configuration are not touched.
   - **CPU without AVX** (some old VMs; MongoDB 5+ needs it): only the tools are installed.
+  - **Under about 2 GB of RAM:** only the tools are installed, because an idle MongoDB server
+    uses roughly 150-300 MB. Set `OPENVPS_MONGODB_SERVER=1` to install the server anyway.
   - Don't want it? Run `sudo openvps provision --no-mongodb` (or set `OPENVPS_SKIP_MONGODB=1`)
     and install the tools yourself. If the install fails, provision prints the reason as a
     warning and carries on; folder backups are unaffected.

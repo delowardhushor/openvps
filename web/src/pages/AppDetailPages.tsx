@@ -175,7 +175,7 @@ export function AppDetailPage({ owner, name, navigate }: { owner: Owner; name: s
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => document.visibilityState !== 'hidden' && void load(), 5000);
+    const t = setInterval(() => document.visibilityState !== 'hidden' && void load(), 10_000);
     return () => clearInterval(t);
   }, [load]);
 

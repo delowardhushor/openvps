@@ -99,6 +99,7 @@ journalctl -u openvps -f            # logs
 | [Sites & SSL](docs/sites.md) | Domains, static sites and SPAs, HTTPS certificates |
 | [Databases](docs/databases.md) | Browse MongoDB databases, collections and documents (read-only) |
 | [Backups](docs/backups.md) | Scheduled folder and MongoDB backups, cloud storage, restore |
+| [Resource footprint](docs/performance.md) | CPU, memory and disk use, and advice for small servers |
 | [Configuration](docs/configuration.md) | Every setting in `/etc/openvps/config.json` |
 | [Upgrading](docs/upgrading.md) | Upgrade procedure and automatic rollback |
 | [Uninstalling](docs/uninstalling.md) | What is removed and what is kept |

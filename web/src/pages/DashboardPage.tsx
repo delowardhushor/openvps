@@ -369,7 +369,7 @@ function AppsSummary({ navigate }: { navigate?: (p: string) => void }) {
         })
         .catch(() => setFailed(true));
     void load();
-    const t = setInterval(() => document.visibilityState !== 'hidden' && void load(), 15_000);
+    const t = setInterval(() => document.visibilityState !== 'hidden' && void load(), 30_000);
     return () => clearInterval(t);
   }, []);
   const all = data ? [...data.apps.processes, ...data.root.processes] : [];

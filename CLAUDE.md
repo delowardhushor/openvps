@@ -210,6 +210,16 @@ real Nginx + Certbot + Pebble test CA).
   failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
   connection from the UI (API/agent accept per-source URIs; UI only uses the plan's), testing
   against real AWS S3/R2/B2 (only SeaweedFS is exercised).
+- **Resource footprint (unreleased, after v0.5.1):** see `docs/performance.md` (measured vs
+  estimated numbers). Low-end VPS is a design concern: keep idle cost near zero. Done: `provision.sh`
+  installs the MongoDB *server* only with >= ~2 GB RAM (`OPENVPS_MONGODB_SERVER=1` forces it);
+  `Pm2Target` caches/shares `pm2 jlist` (`listCacheMs` 4 s in `buildAgent`, 0 in tests; every
+  mutation calls `invalidate()`; never bypass `checked()` for PM2 changes); each PM2 CLI start gets
+  `NODE_COMPILE_CACHE`; panel lists root then apps sequentially; UI polls Applications 10 s,
+  dashboard processes 30 s; unit files pass `--max-semi-space-size=1 --v8-pool-size=0` and
+  `--max-old-space-size` (160 panel / 128 agent); backup tools run under `nice` + probed `ionice`.
+  Do not add new recurring subprocesses or timers without checking this page. Still open: read PM2
+  state without spawning Node, PM2 log rotation, real-host measurements.
 - **Next: Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,
   deployment history; also building React/static sites into their site folder. Deploys are

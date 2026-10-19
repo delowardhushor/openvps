@@ -13,7 +13,9 @@ Group=openvps
 Environment=NODE_ENV=production
 Environment=OPENVPS_CONFIG=/etc/openvps/config.json
 WorkingDirectory=/var/lib/openvps
-ExecStart=/opt/openvps/node/bin/node --disable-warning=ExperimentalWarning /opt/openvps/current/server/dist/main.js
+# Small V8 young generation, no V8 helper threads and a 160 MB heap cap keep the resident size
+# lowest on small servers (measured: about 9 MB less after heavy use; see docs/performance.md).
+ExecStart=/opt/openvps/node/bin/node --disable-warning=ExperimentalWarning --max-semi-space-size=1 --v8-pool-size=0 --max-old-space-size=160 /opt/openvps/current/server/dist/main.js
 Restart=on-failure
 RestartSec=3
 # Configuration errors (exit 78) will not be fixed by restarting.

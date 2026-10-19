@@ -37,6 +37,14 @@ export interface Pm2TargetOptions {
    */
   ensureDaemon?: () => Promise<void>;
   timeoutMs?: number;
+  /**
+   * How long a `pm2 jlist` result is reused, in ms. Every listing starts a whole Node + PM2 CLI
+   * process, which is the most expensive thing the agent does on a small VPS. Concurrent
+   * callers share one run, and any change made through this target drops the cache. 0 = off.
+   */
+  listCacheMs?: number;
+  /** Directory for Node's compile cache, which makes each PM2 CLI start noticeably cheaper. */
+  compileCacheDir?: string;
 }
 
 export interface RunResult {
@@ -198,7 +206,20 @@ export class Pm2Target {
       PM2_HOME: this.opts.pm2Home,
       PATH: [...this.opts.pathDirs, SYSTEM_PATH].join(':'),
       LANG: 'C.UTF-8',
+      // Node >= 22.1 reuses compiled code between runs; older Nodes ignore it.
+      ...(this.opts.compileCacheDir ? { NODE_COMPILE_CACHE: this.opts.compileCacheDir } : {}),
     };
+  }
+
+  private listCache: { at: number; raw: RawProc[] } | null = null;
+  private listInflight: { epoch: number; p: Promise<RawProc[]> } | null = null;
+  /** Bumped by every change so a listing that started before it is never cached. */
+  private listEpoch = 0;
+
+  /** Forget the cached process list; call after anything that can change it. */
+  invalidate(): void {
+    this.listEpoch++;
+    this.listCache = null;
   }
 
   run(args: string[], timeoutMs = this.opts.timeoutMs ?? 60_000): Promise<RunResult> {
@@ -299,7 +320,9 @@ export class Pm2Target {
   }
 
   private async checked(args: string[], what: string): Promise<RunResult> {
+    if (args[0] !== 'jlist') this.invalidate();
     const r = await this.run(args);
+    if (args[0] !== 'jlist') this.invalidate();
     if (r.code !== 0) {
       const detail = (r.stderr || r.stdout).replace(/\x1b\[[0-9;]*m/g, '').trim().split('\n').slice(-3).join(' ');
       throw new AgentError('pm2_error', `${what} failed${r.code === 124 ? ' (timed out)' : ''}: ${detail.slice(0, 400)}`);
@@ -307,18 +330,40 @@ export class Pm2Target {
     return r;
   }
 
-  async rawList(): Promise<RawProc[]> {
-    await this.ready();
-    const r = await this.checked(['jlist'], 'Listing processes');
-    return parseJlist(r.stdout);
+  /**
+   * The raw process list. `maxAgeMs` lets callers that only need slow-changing facts (such as log
+   * file paths) accept an older result than the target's default; `fresh` forces a new run.
+   */
+  async rawList(opts: { maxAgeMs?: number; fresh?: boolean } = {}): Promise<RawProc[]> {
+    const ttl = opts.fresh ? 0 : Math.max(opts.maxAgeMs ?? 0, this.opts.listCacheMs ?? 0);
+    const c = this.listCache;
+    if (ttl > 0 && c && Date.now() - c.at < ttl) return c.raw;
+    const epoch = this.listEpoch;
+    if (ttl > 0 && this.listInflight && this.listInflight.epoch === epoch) return this.listInflight.p;
+    const p = (async () => {
+      await this.ready();
+      const r = await this.checked(['jlist'], 'Listing processes');
+      const raw = parseJlist(r.stdout);
+      if (epoch === this.listEpoch && (this.opts.listCacheMs ?? 0) > 0) this.listCache = { at: Date.now(), raw };
+      return raw;
+    })();
+    if (ttl > 0) {
+      const mine = { epoch, p };
+      this.listInflight = mine;
+      const clear = () => {
+        if (this.listInflight === mine) this.listInflight = null;
+      };
+      p.then(clear, clear);
+    }
+    return p;
   }
 
-  async list(): Promise<ProcessInfo[]> {
-    return normalize(await this.rawList(), this.owner);
+  async list(opts: { fresh?: boolean } = {}): Promise<ProcessInfo[]> {
+    return normalize(await this.rawList(opts), this.owner);
   }
 
-  async find(name: string): Promise<ProcessInfo | null> {
-    return (await this.list()).find((p) => p.name === name) ?? null;
+  async find(name: string, opts: { fresh?: boolean } = {}): Promise<ProcessInfo | null> {
+    return (await this.list(opts)).find((p) => p.name === name) ?? null;
   }
 
   async control(name: string, op: ControlOp): Promise<ProcessInfo> {
@@ -329,7 +374,8 @@ export class Pm2Target {
   }
 
   async logs(name: string, stream: 'out' | 'err', lines: number): Promise<{ path: string | null; lines: string[] }> {
-    const raw = await this.rawList();
+    // Log paths only change when the process is (re)started, which drops the cache anyway.
+    const raw = await this.rawList({ maxAgeMs: 30_000 });
     if (!raw.some((p) => p.name === name)) throw new AgentError('not_found', `No PM2 process named "${name}".`);
     const paths = logPaths(raw, name, stream);
     if (paths.length === 0) return { path: null, lines: [] };

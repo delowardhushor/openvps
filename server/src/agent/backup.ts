@@ -51,6 +51,8 @@ export interface BackupOptions {
   tarBin: string | null;
   /** `nice`, to keep long compression jobs from starving the apps on a small VPS. */
   niceBin?: string | null;
+  /** `ionice`, so a big archive does not starve the apps' disk access either. */
+  ioniceBin?: string | null;
   mongodumpBin: string | null;
   mongorestoreBin: string | null;
   version: string;
@@ -139,9 +141,29 @@ export class BackupManager {
     return this.o.s3 ? this.o.s3(access) : new S3Client(access);
   }
 
-  /** Run a CPU-heavy tool at low priority when `nice` is available. */
-  private heavy(bin: string, args: string[], timeoutMs = TOOL_TIMEOUT) {
-    return this.o.niceBin ? runTool(this.o.niceBin, ['-n', '10', bin, ...args], { timeoutMs }) : runTool(bin, args, { timeoutMs });
+  private ioniceWorks: Promise<boolean> | null = null;
+
+  /** `ionice` can fail in containers (ioprio_set refused); check once and fall back to plain nice. */
+  private async canIonice(): Promise<boolean> {
+    const bin = this.o.ioniceBin;
+    if (!bin) return false;
+    this.ioniceWorks ??= runTool(bin, ['-c2', '-n7', process.execPath, '--version'], { timeoutMs: 5000 }).then((r) => r.code === 0);
+    return this.ioniceWorks;
+  }
+
+  /** Run a CPU- and disk-heavy tool at low CPU and IO priority when `nice`/`ionice` are available. */
+  private async heavy(bin: string, args: string[], timeoutMs = TOOL_TIMEOUT) {
+    let file = bin;
+    let argv = args;
+    if (this.o.niceBin) {
+      argv = ['-n', '10', file, ...argv];
+      file = this.o.niceBin;
+    }
+    if (await this.canIonice()) {
+      argv = ['-c2', '-n7', file, ...argv];
+      file = this.o.ioniceBin!;
+    }
+    return runTool(file, argv, { timeoutMs });
   }
 
   private requireTar(): string {

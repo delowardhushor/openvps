@@ -10,7 +10,8 @@ Type=simple
 User=root
 Environment=NODE_ENV=production
 Environment=OPENVPS_CONFIG=/etc/openvps/config.json
-ExecStart=/opt/openvps/node/bin/node --disable-warning=ExperimentalWarning /opt/openvps/current/server/dist/agent.js
+# Same memory tuning as the panel (docs/performance.md); the agent only orchestrates tools, so 128 MB is ample.
+ExecStart=/opt/openvps/node/bin/node --disable-warning=ExperimentalWarning --max-semi-space-size=1 --v8-pool-size=0 --max-old-space-size=128 /opt/openvps/current/server/dist/agent.js
 Restart=on-failure
 RestartSec=3
 RestartPreventExitStatus=78

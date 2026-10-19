@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type ProcessesResponse, type ProcessInfo } from '../api';
 import { ControlButtons, OwnerBadge, StatusBadge, memory, uptime } from '../components/ProcessBits';
 
-export function useProcesses(intervalMs = 5000) {
+export function useProcesses(intervalMs = 10_000) {
   const [data, setData] = useState<ProcessesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {

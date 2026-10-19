@@ -1,11 +1,11 @@
 import { MongoClient, MongoServerError } from './client.ts';
-import { toEjson, type BsonDoc } from './bson.ts';
+import { Int64, toEjson, type BsonDoc } from './bson.ts';
 import { parseQueryDoc, QueryError } from './query-lang.ts';
 
 /**
  * Read-only operations for the MongoDB browser. This is the whole list of commands the panel
  * ever sends (besides the handshake and login): listDatabases, listCollections, aggregate with
- * $collStats, listIndexes, find and count. Nothing here can write, and filters that run
+ * $collStats, listIndexes, find, count and killCursors (to close the cursor of a find). Nothing here can write, and filters that run
  * JavaScript on the server are refused (see query-lang.ts).
  */
 
@@ -262,7 +262,6 @@ export async function find(c: MongoClient, q: FindQuery): Promise<FindResult> {
     skip: q.skip,
     limit: q.limit,
     batchSize: q.limit,
-    singleBatch: true,
     maxTimeMS: LIMITS.findMs,
   };
   if (Object.keys(q.sort).length) cmd.sort = q.sort;
@@ -274,6 +273,13 @@ export async function find(c: MongoClient, q: FindQuery): Promise<FindResult> {
     if (e instanceof MongoServerError && e.code === 50) throw new BrowseError('The query took too long and was stopped. Add a more selective filter or an indexed sort.');
     if (e instanceof MongoServerError && e.code !== 13) throw new BrowseError(e.message);
     throw e;
+  }
+  // Views run as aggregations, which do not accept singleBatch, so a cursor may stay open: close it.
+  const cursorId = obj(r.typed.cursor).id;
+  if (cursorId instanceof Int64 && cursorId.value !== 0n) {
+    await c.command(q.db, { killCursors: q.collection, cursors: [cursorId] }, { timeoutMs: 10_000 }).catch((e: unknown) => {
+      if (!(e instanceof MongoServerError)) throw e;
+    });
   }
   const batch = obj(r.typed.cursor).firstBatch;
   const documents = (Array.isArray(batch) ? batch : []).map((d) => toEjson(d, { maxString: LIMITS.maxValue, maxBinary: LIMITS.maxValue }));

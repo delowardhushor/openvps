@@ -159,8 +159,15 @@ export async function startFakeMongo(o: FakeMongoOptions): Promise<FakeMongo> {
         }
         case 'listIndexes':
           return reply(id, ok(batch(`${db}.${String(plain.listIndexes)}`, [{ v: new Int32(2), key: { _id: new Int32(1) }, name: '_id_' }, { v: new Int32(2), key: { email: new Int32(1) }, name: 'email_1', unique: true }])));
+        case 'killCursors':
+          return reply(id, ok({ cursorsKilled: [plain.cursors], cursorsNotFound: [], cursorsAlive: [], cursorsUnknown: [] }));
         case 'find': {
           const docs = o.data[db]?.[String(plain.find)];
+          // Like a real view: it runs as an aggregation, which rejects singleBatch and leaves the cursor open.
+          if (String(plain.find).startsWith('view_')) {
+            if ('singleBatch' in plain) return fail(id, 9, 'FailedToParse', 'Option singleBatch not supported in aggregation.');
+            return reply(id, ok({ cursor: { firstBatch: (docs ?? []).slice(0, Number(plain.limit ?? 101)), id: 1234567890123456789n, ns: `${db}.${String(plain.find)}` } }));
+          }
           if (!docs) return reply(id, ok(batch(`${db}.${String(plain.find)}`, [])));
           let out = docs.filter((d) => matches(plainDoc(d), plain.filter as BsonDoc));
           const sort = Object.entries((plain.sort as BsonDoc | undefined) ?? {}) as [string, number][];

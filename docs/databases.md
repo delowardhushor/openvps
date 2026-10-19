@@ -70,7 +70,7 @@ by value; Decimal128 values cannot be typed into a filter.
   most 100 documents. Very long strings and binary values are cut in the display and marked.
 - `$where`, `$function` and `$accumulator` (JavaScript run by the server) are refused.
 - Only these MongoDB commands are ever sent: `isMaster`, the login steps, `buildInfo`,
-  `listDatabases`, `listCollections`, `aggregate` with `$collStats`, `listIndexes`, `find` and
+  `listDatabases`, `listCollections`, `aggregate` with `$collStats`, `listIndexes`, `find` (plus `killCursors` to close its cursor) and
   `count`.
 - Opening and querying are not written to the activity log one by one; adding, editing and
   removing connections are.

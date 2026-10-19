@@ -173,6 +173,7 @@ describe('client and browser against a fake server', () => {
     shop: {
       users: Array.from({ length: 45 }, (_, i) => ({ _id: ObjectId.fromHex(String(i).padStart(24, '0')), n: i, name: `user${i}`, email: `u${i}@x.io` })),
       orders: [{ _id: 1, total: new Double(9.5) }],
+      view_users: [{ _id: 1, name: 'v1' }, { _id: 2, name: 'v2' }],
     },
     admin: {},
   };
@@ -221,7 +222,7 @@ describe('client and browser against a fake server', () => {
     const c = await MongoClient.connect(fake.uri());
     try {
       assert.deepEqual((await listDatabases(c)).databases.map((d) => d.name), ['admin', 'shop']);
-      assert.deepEqual((await listCollections(c, 'shop')).map((x) => x.name), ['orders', 'users']);
+      assert.deepEqual((await listCollections(c, 'shop')).map((x) => x.name), ['orders', 'users', 'view_users']);
       const st = await collectionStats(c, 'shop', 'users');
       assert.equal(st.stats?.count, 45);
       assert.equal(st.indexes.length, 2);
@@ -253,8 +254,21 @@ describe('client and browser against a fake server', () => {
     }
   });
 
+  test('a view works: no singleBatch, and the cursor it leaves open is closed', async () => {
+    const c = await MongoClient.connect(fake.uri());
+    try {
+      const r = await find(c, parseFindInput({ db: 'shop', collection: 'view_users', limit: 5 }));
+      assert.equal(r.documents.length, 2);
+      const kill = fake.commands.filter((x) => x.name === 'killCursors').at(-1);
+      assert.ok(kill);
+      assert.equal(kill.body.killCursors, 'view_users');
+    } finally {
+      c.close();
+    }
+  });
+
   test('the only commands ever sent are the read-only ones', () => {
-    const allowed = new Set(['isMaster', 'saslStart', 'saslContinue', 'buildInfo', 'listDatabases', 'listCollections', 'aggregate', 'listIndexes', 'find', 'count']);
+    const allowed = new Set(['killCursors', 'isMaster', 'saslStart', 'saslContinue', 'buildInfo', 'listDatabases', 'listCollections', 'aggregate', 'listIndexes', 'find', 'count']);
     assert.ok(fake.commands.length > 10);
     for (const c of fake.commands) assert.ok(allowed.has(c.name), `unexpected command ${c.name}`);
     const agg = fake.commands.filter((c) => c.name === 'aggregate');
@@ -286,7 +300,7 @@ describe('client and browser against a fake server', () => {
     const f = await startFakeMongo({ data, collectionLevelUser: true });
     try {
       const c = await MongoClient.connect(f.uri());
-      assert.deepEqual((await listCollections(c, 'shop')).map((x) => x.name), ['orders', 'users']);
+      assert.deepEqual((await listCollections(c, 'shop')).map((x) => x.name), ['orders', 'users', 'view_users']);
       c.close();
     } finally {
       await f.close();

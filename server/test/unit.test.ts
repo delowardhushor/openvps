@@ -208,6 +208,18 @@ describe('config', () => {
     assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { services: ['nginx; rm -rf /'] }), ConfigError);
     assert.throws(() => loadConfig({ OPENVPS_CONFIG: '/does/not/exist.json' }), ConfigError);
   });
+
+  test('files.roots: ordinary folders are fine (CI runners live under /home), system ones are refused', () => {
+    for (const ok of ['/home/runner/work/openvps/server/.data/apps', '/tmp/site', '/srv/apps', '/var/www', '/mnt/data/sites']) {
+      assert.deepEqual(loadConfig({ OPENVPS_DEV: '1' }, { files: { roots: [ok] } }).files.roots, [ok]);
+    }
+    for (const bad of ['/', '/etc', '/etc/nginx', '/root', '/usr/share', '/proc', '/var/lib/openvps', '/var/backups/openvps/x', '/opt/openvps/current']) {
+      assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { files: { roots: [bad] } }), ConfigError, bad);
+    }
+    assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { files: { roots: [] } }), ConfigError);
+    assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { files: { roots: ['relative/path'] } }), ConfigError);
+    assert.throws(() => loadConfig({ OPENVPS_DEV: '1' }, { files: { maxUploadMb: 0 } }), ConfigError);
+  });
   test('agent and apps settings are validated', () => {
     const c = loadConfig({ OPENVPS_CONFIG: undefined }, {});
     assert.equal(c.agent.socket, '/run/openvps-agent/agent.sock');

@@ -328,7 +328,7 @@ export function validate(c: Omit<Config, 'source'>): void {
   }
   for (const r of c.files.roots) {
     abs('files.roots[]', r);
-    if (r === '/' || /^\/(etc|root|boot|proc|sys|dev|usr|bin|sbin|lib|run|home)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps') || r.startsWith('/var/backups/openvps') || r.startsWith('/opt/openvps')) {
+    if (r === '/' || /^\/(etc|root|boot|proc|sys|dev|usr|bin|sbin|lib|run)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps') || r.startsWith('/var/backups/openvps') || r.startsWith('/opt/openvps')) {
       throw new ConfigError(`files.roots must not include system or OpenVPS directories (${r})`);
     }
   }

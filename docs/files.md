@@ -39,8 +39,9 @@ Every operation runs in a small helper process that the agent starts **as the us
 managed folder**: `ovapps` for `/srv/apps`, `root` for a root-owned `/var/www`. So:
 
 - Files you upload to `/srv/apps` belong to `ovapps`, exactly like the files your apps create.
-- The file manager can only change what that user may change. A root-owned file inside an
-  `ovapps` folder cannot be replaced from the panel; the error says so.
+- The file manager can only do what that user may do. It cannot write into a root-owned folder or
+  read a root-only file inside `/srv/apps`; the error says so. As on the command line, the owner of
+  a folder can still replace or delete files inside it, whoever owns them.
 - The kernel enforces this, so a link planted by an app cannot be used to read or write files the
   app's own user could not reach.
 

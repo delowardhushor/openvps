@@ -48,11 +48,17 @@ check "downloaded intact" "$GOT" "$SUM"
 rm -f "$BIG"
 
 echo "== 4. the helper has only the apps user's rights"
-echo root-owned | sudo tee /srv/apps/fm/rootfile.txt >/dev/null
-sudo chmod 644 /srv/apps/fm/rootfile.txt
-CODE="$(echo -n x | api "${H[@]:2}" -X POST -H 'content-type: application/octet-stream' --data-binary @- -o /dev/null -w '%{http_code}' "$B/api/files/upload?$(q $R fm/rootfile.txt)&overwrite=1")"
-check "cannot replace a root-owned file" "$CODE" 403
-[[ "$(sudo cat /srv/apps/fm/rootfile.txt)" == root-owned ]]
+# A folder owned by root: the apps user cannot write into it (note that the owner of a folder CAN
+# replace or delete files inside it, whoever owns them, as on the command line).
+sudo install -d -o root -g root -m 0755 /srv/apps/fm/rootdir
+CODE="$(echo -n x | api "${H[@]:2}" -X POST -H 'content-type: application/octet-stream' --data-binary @- -o /dev/null -w '%{http_code}' "$B/api/files/upload?$(q $R fm/rootdir/new.txt)")"
+check "cannot write into a root-owned folder" "$CODE" 403
+[[ ! -e /srv/apps/fm/rootdir/new.txt ]]
+echo root-only | sudo tee /srv/apps/fm/secret.txt >/dev/null
+sudo chmod 600 /srv/apps/fm/secret.txt
+check "cannot read a root-only file" "$(api -o /dev/null -w '%{http_code}' "$B/api/files/download?$(q $R fm/secret.txt)")" 403
+check "cannot delete inside a root-owned folder" "$(echo | sudo tee /srv/apps/fm/rootdir/keep.txt >/dev/null; api "${H[@]}" -o /dev/null -w '%{http_code}' -d "{\"root\":\"$R\",\"path\":\"fm/rootdir/keep.txt\"}" $B/api/files/delete)" 403
+[[ -e /srv/apps/fm/rootdir/keep.txt ]]
 sudo -u ovapps ln -s /etc /srv/apps/fm/etc-link
 sudo -u ovapps ln -s /root /srv/apps/fm/root-link
 check "a link to /etc is not followed" "$(api -o /dev/null -w '%{http_code}' "$B/api/files/list?$(q $R fm/etc-link)")" 403

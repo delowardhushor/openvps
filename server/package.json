@@ -14,7 +14,7 @@
     "dev": "OPENVPS_DEV=1 node --disable-warning=ExperimentalWarning --watch src/main.ts",
     "dev:agent": "OPENVPS_DEV=1 node --disable-warning=ExperimentalWarning --watch src/agent.ts",
     "start": "node --disable-warning=ExperimentalWarning dist/main.js",
-    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 --test-timeout=120000 test/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

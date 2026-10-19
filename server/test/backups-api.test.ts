@@ -48,15 +48,18 @@ describe('backups API', () => {
   before(async () => {
     fx = await startAgentFixture();
     s3 = await new FakeS3().start();
-    srv = await startTestServer({ agent: { socket: fx.socket }, backups: { fileRoots: [fx.appsRoot] } });
+    srv = await startTestServer({ agent: { socket: fx.socket } });
+    // Set after loading: config validation (rightly) refuses roots under /tmp, where CI keeps its temp dirs.
+    srv.config.backups.fileRoots = [fx.appsRoot];
     site = join(fx.appsRoot, 'hello');
     c = new Client(srv.url);
     assert.equal((await c.post('/api/setup', { setupToken: srv.setupToken, username: 'admin', password: GOOD_PASSWORD })).status, 200);
   });
   after(async () => {
-    await srv.close();
-    await fx.close();
-    await s3.close();
+    // Tolerate a failed `before`: anything left listening would keep the test process alive forever.
+    await srv?.close();
+    await fx?.close();
+    await s3?.close();
   });
 
   const dest = () => ({

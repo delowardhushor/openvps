@@ -76,6 +76,8 @@ jobs:
       - name: Backups end-to-end (real S3 server + MongoDB + the agent's systemd sandbox)
         timeout-minutes: 15
         run: bash scripts/ci/backups-e2e.sh
+      - name: File manager end-to-end (the agent's helper acting as the apps user)
+        run: bash scripts/ci/files-e2e.sh
       - name: Reinstall-upgrade with rollback path exercised
         run: sudo openvps upgrade --package release/openvps-*.tar.gz --reinstall --yes
       - name: Uninstall

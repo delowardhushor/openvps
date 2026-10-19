@@ -17,6 +17,7 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
 | MongoDB browser + MongoDB auto-install | v0.5.0, v0.5.1 | ✅ released (0.5.1 adds Ubuntu 20.04 install via MongoDB 7.0 and the view fix) |
+| Files page (file manager) + low-end resource work | v0.6.0 | ✅ built and version-bumped; maintainer commits, tags `v0.6.0`, pushes |
 | 2b Git deployments | next | not started |
 | 4 Backups (MongoDB, files, S3) | v0.4.0 | ✅ released; encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
@@ -210,7 +211,7 @@ real Nginx + Certbot + Pebble test CA).
   failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
   connection from the UI (API/agent accept per-source URIs; UI only uses the plan's), testing
   against real AWS S3/R2/B2 (only SeaweedFS is exercised).
-- **Resource footprint (unreleased, after v0.5.1):** see `docs/performance.md` (measured vs
+- **Resource footprint (v0.6.0):** see `docs/performance.md` (measured vs
   estimated numbers). Low-end VPS is a design concern: keep idle cost near zero. Done: `provision.sh`
   installs the MongoDB *server* only with >= ~2 GB RAM (`OPENVPS_MONGODB_SERVER=1` forces it);
   `Pm2Target` caches/shares `pm2 jlist` (`listCacheMs` 4 s in `buildAgent`, 0 in tests; every
@@ -220,7 +221,7 @@ real Nginx + Certbot + Pebble test CA).
   `--max-old-space-size` (160 panel / 128 agent); backup tools run under `nice` + probed `ionice`.
   Do not add new recurring subprocesses or timers without checking this page. Still open: read PM2
   state without spawning Node, PM2 log rotation, real-host measurements.
-- **Files page / file manager (unreleased, after v0.5.1):** `docs/files.md`, `agent/files-spec.ts`,
+- **Files page / file manager (v0.6.0):** `docs/files.md`, `agent/files-spec.ts`,
   `agent/fileworker.ts` (helper), `agent/files.ts`, `routes/files.ts`, `web/src/pages/FilesPage.tsx`.
   Design rules: file work never runs as root inside the agent; a helper is spawned as the owner of
   the configured root (`files.roots`, Node `spawn` uid/gid, only when the agent is root); uploads are
@@ -230,8 +231,8 @@ real Nginx + Certbot + Pebble test CA).
   closes, so refused uploads are drained (`sock.resume()`). The HTTP server has no `requestTimeout`
   (idle socket timeout 120 s instead). Panel-site Nginx config has a `^~ /api/files/` location
   (no body limit, no buffering). Real-host behaviour (uid drop, ownership, symlinks) is only covered by
-  `scripts/ci/files-e2e.sh`, which is **not yet run in CI** (workflow step to be added by the
-  maintainer after the apps step) and has not been run on a real host. Not done: zip/unzip, search,
+  `scripts/ci/files-e2e.sh`, which is wired into `.github/workflows/ci.yml` (after the backups step) but
+  had **not been seen passing on a runner or a real host** when 0.6.0 was prepared. Not done: zip/unzip, search,
   copy, chmod/chown, resumable uploads.
 - **Next: Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,

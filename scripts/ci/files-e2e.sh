@@ -6,6 +6,7 @@
 set -Eeuo pipefail
 trap 'echo "FAILED at line $LINENO: $BASH_COMMAND" >&2' ERR
 
+PASSWORD="${OPENVPS_PASSWORD:-correct horse battery staple}"
 B=https://127.0.0.1:7443
 JAR="$(mktemp)"
 H=(-H 'content-type: application/json' -H 'x-openvps-request: 1')
@@ -16,9 +17,9 @@ q() { printf 'root=%s&path=%s' "$1" "$2"; }
 echo "== 1. sign in (reuses the admin from an earlier step when there is one)"
 if [[ "$(curl -sk $B/api/setup/status)" == *'"needsSetup":true'* ]]; then
   TOKEN="$(sudo openvps setup-token)"
-  api "${H[@]}" -d "{\"setupToken\":\"$TOKEN\",\"username\":\"admin\",\"password\":\"correct horse battery staple\"}" $B/api/setup >/dev/null
+  api "${H[@]}" -d "{\"setupToken\":\"$TOKEN\",\"username\":\"admin\",\"password\":\"$PASSWORD\"}" $B/api/setup >/dev/null
 else
-  api "${H[@]}" -d '{"username":"admin","password":"correct horse battery staple"}' $B/api/auth/login >/dev/null
+  api "${H[@]}" -d "{\"username\":\"admin\",\"password\":\"$PASSWORD\"}" $B/api/auth/login >/dev/null
 fi
 ROOTS="$(api $B/api/files/roots)"
 check "roots offered" "$ROOTS" '"/srv/apps"'

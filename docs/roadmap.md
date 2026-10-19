@@ -55,6 +55,10 @@ instances in CI, and the security review.
 documents with shell-style filter/sort/projection, indexes, sizes). **Next for it:** editing
 documents, aggregation, export.
 
+**v0.6 ✅ (Files, low-end tuning):** file manager with drag-and-drop upload, download, rename,
+delete and a text editor; PM2 listing cache, RAM-gated MongoDB server install, memory flags.
+**Next for it:** zip/unzip, search, copy, chmod/chown, resumable uploads, PM2 log rotation.
+
 ## Phase 5: Public release
 
 Complete documentation, GitHub Releases, clean-VPS install testing, public beta, then stable.

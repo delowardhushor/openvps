@@ -92,6 +92,15 @@ export interface Config {
     /** Run scheduled backups from the panel. */
     scheduler: boolean;
   };
+  /** File manager. */
+  files: {
+    /** Folders the file manager may browse and change. Work is done as each folder's owner. */
+    roots: string[];
+    /** Largest single upload, in MB. */
+    maxUploadMb: number;
+    /** Largest text file opened in the browser editor, in KB. */
+    maxEditKb: number;
+  };
 }
 
 export const DEFAULT_CONFIG_PATH = '/etc/openvps/config.json';
@@ -163,6 +172,11 @@ function defaults(dev: boolean): Omit<Config, 'source'> {
       mongodumpBin: null,
       mongorestoreBin: null,
       scheduler: true,
+    },
+    files: {
+      roots: [dev ? resolve(process.cwd(), '.data', 'apps') : '/srv/apps', ...(dev ? [] : ['/var/www'])],
+      maxUploadMb: 2048,
+      maxEditKb: 1024,
     },
   };
 }
@@ -309,6 +323,17 @@ export function validate(c: Omit<Config, 'source'>): void {
       throw new ConfigError(`backups.fileRoots must not contain or sit inside backups.dir (${r})`);
     }
   }
+  if (!Array.isArray(c.files.roots) || c.files.roots.length === 0 || c.files.roots.length > 8) {
+    throw new ConfigError('files.roots must list 1 to 8 directories');
+  }
+  for (const r of c.files.roots) {
+    abs('files.roots[]', r);
+    if (r === '/' || /^\/(etc|root|boot|proc|sys|dev|usr|bin|sbin|lib|run|home)(\/|$)/.test(r) || r.startsWith('/var/lib/openvps') || r.startsWith('/var/backups/openvps') || r.startsWith('/opt/openvps')) {
+      throw new ConfigError(`files.roots must not include system or OpenVPS directories (${r})`);
+    }
+  }
+  int('files.maxUploadMb', c.files.maxUploadMb, 1, 1024 * 1024);
+  int('files.maxEditKb', c.files.maxEditKb, 1, 8192);
   if (c.sites.dnsServers !== null) {
     if (!Array.isArray(c.sites.dnsServers) || c.sites.dnsServers.length > 4 || !c.sites.dnsServers.every((s) => typeof s === 'string' && /^[0-9a-fA-F:.\[\]]+$/.test(s))) {
       throw new ConfigError('sites.dnsServers must be a list of IP[:port] or null');

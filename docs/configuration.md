@@ -54,8 +54,11 @@ A complete example is in `/opt/openvps/current/packaging/config.example.json`.
 | `backups.fileRoots` | `["/srv/apps","/var/www"]` | Folders that may be backed up and restored into (system and OpenVPS data directories are refused). |
 | `backups.scheduler` | `true` | Start scheduled backups from the panel. `false` = plans only run when you click. |
 | `backups.tarBin`, `backups.mongodumpBin`, `backups.mongorestoreBin` | `null` | Tool paths; `null` = look in `/usr/bin`, `/usr/local/bin` (and `/snap/bin`). |
+| `files.roots` | `["/srv/apps","/var/www"]` | Folders the [Files](files.md) page may browse and change (system and OpenVPS data directories are refused). Work is done as each folder's owner. |
+| `files.maxUploadMb` | `2048` | Largest single upload, in MB. |
+| `files.maxEditKb` | `1024` | Largest text file opened in the browser editor, in KB. |
 
-The agent reads the same file. After changing `agent.*`, `apps.*`, `sites.*` or `backups.*`, run
+The agent reads the same file. After changing `agent.*`, `apps.*`, `sites.*`, `backups.*` or `files.*`, run
 `sudo systemctl restart openvps-agent openvps`.
 
 ## Environment variables

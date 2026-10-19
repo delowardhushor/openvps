@@ -49,8 +49,8 @@ function contentLocations(spec: SiteSpec, env: RenderEnv, inherited: string[] = 
     '    return 404;',
     '}',
   ];
-  const proxyHeaders = (upstream: string, ws: boolean, extra: string[] = []) => [
-    'location / {',
+  const proxyHeaders = (upstream: string, ws: boolean, extra: string[] = [], loc = '/', timeout = '300s') => [
+    `location ${loc} {`,
     `    proxy_pass ${upstream};`,
     '    proxy_http_version 1.1;',
     '    proxy_set_header Host $host;',
@@ -59,8 +59,8 @@ function contentLocations(spec: SiteSpec, env: RenderEnv, inherited: string[] = 
     '    proxy_set_header X-Forwarded-Proto $scheme;',
     '    proxy_set_header X-Forwarded-Host $host;',
     ...(ws ? ['    proxy_set_header Upgrade $http_upgrade;', '    proxy_set_header Connection $openvps_connection_upgrade;'] : []),
-    '    proxy_read_timeout 300s;',
-    '    proxy_send_timeout 300s;',
+    `    proxy_read_timeout ${timeout};`,
+    `    proxy_send_timeout ${timeout};`,
     ...extra.map((e) => '    ' + e),
     '}',
   ];
@@ -71,7 +71,17 @@ function contentLocations(spec: SiteSpec, env: RenderEnv, inherited: string[] = 
     case 'panel': {
       const scheme = env.panel.tls ? 'https' : 'http';
       const extra = env.panel.tls ? ['proxy_ssl_verify off;  # the panel uses a self-signed certificate on localhost', 'proxy_ssl_server_name off;'] : [];
-      return [...common, '', ...proxyHeaders(`${scheme}://127.0.0.1:${env.panel.port}`, false, extra)];
+      const upstream = `${scheme}://127.0.0.1:${env.panel.port}`;
+      // The file manager streams uploads and downloads: no size limit here (the panel enforces its own),
+      // nothing buffered to disk by Nginx, and generous timeouts for large files on slow links.
+      return [
+        ...common,
+        '',
+        '# File manager: large uploads and downloads stream straight through.',
+        ...proxyHeaders(upstream, false, ['client_max_body_size 0;', 'proxy_request_buffering off;', 'proxy_buffering off;', ...extra], '^~ /api/files/', '3600s'),
+        '',
+        ...proxyHeaders(upstream, false, extra),
+      ];
     }
     case 'static':
     case 'spa': {

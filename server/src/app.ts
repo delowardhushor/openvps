@@ -7,6 +7,7 @@ import { registerAppRoutes } from './routes/apps.ts';
 import { registerSiteRoutes } from './routes/sites.ts';
 import { registerBackupRoutes } from './routes/backups.ts';
 import { registerMongoRoutes } from './routes/mongo.ts';
+import { registerFileRoutes } from './routes/files.ts';
 import type { AppContext } from './context.ts';
 
 /** Header the SPA sends on every state-changing request. See checkCsrf. */
@@ -84,6 +85,7 @@ export function createApp(app: AppContext) {
   registerSiteRoutes(router, app);
   registerBackupRoutes(router, app);
   registerMongoRoutes(router, app);
+  registerFileRoutes(router, app);
   const serveStatic = createStaticHandler(app.config.webRoot);
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -146,7 +148,7 @@ export function createApp(app: AppContext) {
       }
       if (m.route.opts.auth && !ctx.user) throw new HttpError(401, 'unauthenticated', 'Sign in required.');
 
-      if (m.route.opts.body) ctx.body = await readJsonBody(req);
+      if (m.route.opts.body) ctx.body = await readJsonBody(req, m.route.opts.bodyLimit);
 
       const result = await m.route.handler(ctx);
       if (!res.headersSent) sendJson(res, 200, result ?? { ok: true });

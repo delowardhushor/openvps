@@ -90,6 +90,7 @@ export async function startAgentFixture(opts: { manageRoot?: boolean; withRoot?:
   );
   config.backups.dir = backupsDir;
   config.backups.fileRoots = [appsRoot];
+  config.files.roots = [appsRoot];
   config.backups.mongodumpBin = wrap('mongodump');
   config.backups.mongorestoreBin = wrap('mongorestore');
   let deps = buildAgent(config, silentLogger);

@@ -7,6 +7,26 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+### Added
+- **Files page: a file manager with drag-and-drop upload.** Browse `/srv/apps` and `/var/www`
+  (configurable with `files.roots`), upload files or whole folders by dropping them anywhere on the
+  page (progress per file, cancel, retry, replace prompts), download, rename/move, delete, create
+  folders and files, and edit UTF-8 text files up to 1 MB with a save-conflict check. Uploads
+  stream to disk (no buffering in memory) and are renamed into place when complete. Every operation
+  runs in a short-lived helper process started by the agent as the folder's owner (`ovapps` for
+  `/srv/apps`), so permissions and symlink safety are enforced by the kernel. All changes are in the
+  activity log. New settings `files.roots`, `files.maxUploadMb` (2048), `files.maxEditKb` (1024).
+  See docs/files.md. New agent actions `files.list/mkdir/move/delete` and the streaming
+  `files.upload/download`; the agent socket now carries file bytes after the request line for those
+  two. `scripts/ci/files-e2e.sh` checks ownership and symlink handling on a real host (add it to the
+  CI workflow after the apps step).
+- The panel's own Nginx site gets a `/api/files/` location without upload size limit or
+  buffering. Open the panel site in **Sites & domains** and save it once after upgrading to apply it.
+
+### Changed
+- The panel HTTP server no longer has an overall request timeout (so long uploads work); idle
+  connections are closed after 120 s and JSON request bodies must arrive within 30 s.
+
 ### Changed (lower CPU and memory use, mainly for small servers)
 - **MongoDB server is no longer installed on servers with under about 2 GB of RAM.** Only the
   Database Tools (enough for backups) are installed there. `OPENVPS_MONGODB_SERVER=1` forces the

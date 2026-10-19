@@ -137,6 +137,16 @@ PM2 are separate runs.
   the MongoDB side, not in OpenVPS.
 - Scheduled backups run when due. Schedule them for quiet hours on small servers.
 
+### File manager
+
+- Nothing runs while the Files page is closed. Each file operation starts one helper process (about
+  45 MB, a few hundredths of a second of CPU, started with `--max-old-space-size=64`) that exits when
+  done; at most three run at once, so peak extra memory is about 150 MB during a burst of uploads.
+  Estimated, not yet measured on a real host.
+- Uploads and downloads are streamed in chunks through the panel, the agent and the helper; no file
+  is held in memory. Cost is mostly one extra copy per hop (CPU) and the disk write.
+- The web UI uploads two files at a time.
+
 ### MongoDB browser
 
 - Runs inside the panel and is read-only. Pages are limited to 100 documents, each string or

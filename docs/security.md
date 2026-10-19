@@ -108,6 +108,15 @@ through a private `0600` file (never argv), and scrubbed from errors, logs and t
 Storage endpoints must be `https://` unless they are on a private network. Local backups are
 `root`-only. A restore needs the plan name typed and shows overwrite warnings first.
 
+**File manager.** The agent never touches app files as root: each operation runs in a short-lived
+helper started as the user that owns the managed folder (`ovapps` for `/srv/apps`), so a symlink
+planted by a compromised app cannot reach files that user could not already change. Paths are
+validated by the panel, the agent and the helper (no `..`, no control characters), the agent checks
+the folder against its own `files.roots`, and links are resolved only if they stay inside the root.
+Uploads are streamed to a temporary file and renamed into place; downloads are always
+`application/octet-stream` attachments with `nosniff` and `CSP: sandbox`, so uploaded HTML or SVG
+cannot run in the panel's origin. Changes are audited by path and size, never content.
+
 **MongoDB browser.** Connection strings are sealed at rest (AES-256-GCM, like app secrets) and
 never returned; errors are scrubbed of the password. The browser only sends a fixed list of read
 commands and refuses filters that execute JavaScript on the server (`$where`, `$function`,

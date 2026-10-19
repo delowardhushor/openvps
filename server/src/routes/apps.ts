@@ -35,6 +35,17 @@ const STATUS_BY_CODE: Record<string, number> = {
   bad_manifest: 422,
   verify_failed: 422,
   s3_failed: 502,
+  exists: 409,
+  not_dir: 409,
+  is_dir: 409,
+  not_empty: 409,
+  changed: 409,
+  cross_device: 422,
+  no_space: 507,
+  too_large: 413,
+  incomplete: 400,
+  aborted: 400,
+  timeout: 504,
 };
 
 /** Translate agent failures into API errors the UI can show. */

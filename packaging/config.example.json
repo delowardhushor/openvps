@@ -86,5 +86,13 @@
     "mongodumpBin": null,
     "mongorestoreBin": null,
     "scheduler": true
+  },
+  "files": {
+    "roots": [
+      "/srv/apps",
+      "/var/www"
+    ],
+    "maxUploadMb": 2048,
+    "maxEditKb": 1024
   }
 }

@@ -9,6 +9,7 @@ import { RuntimeDetector } from './agent/runtimes.ts';
 import { createDispatcher, listenAgent, type AgentDeps } from './agent/server.ts';
 import { SitesManager, type SitesOptions } from './agent/sites.ts';
 import { BackupManager } from './agent/backup.ts';
+import { FilesManager } from './agent/files.ts';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { firstExisting, runTool } from './agent/exec.ts';
@@ -124,6 +125,17 @@ export function buildSites(config: Config, overrides: Partial<SitesOptions> = {}
   });
 }
 
+export function buildFiles(config: Config, log: Logger, overrides: Partial<ConstructorParameters<typeof FilesManager>[0]> = {}): FilesManager {
+  const ext = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
+  return new FilesManager({
+    roots: config.files.roots,
+    workerPath: fileURLToPath(new URL(`./agent/fileworker.${ext}`, import.meta.url)),
+    nodeBin: process.execPath,
+    log,
+    ...overrides,
+  });
+}
+
 export function buildBackups(config: Config, log: Logger, overrides: Partial<ConstructorParameters<typeof BackupManager>[0]> = {}): BackupManager {
   const b = config.backups;
   return new BackupManager({
@@ -208,6 +220,7 @@ export function buildAgent(config: Config, log: Logger, overrides: Partial<Agent
     runtimes,
     sites: buildSites(config),
     backups: buildBackups(config, log),
+    files: buildFiles(config, log),
     ...overrides,
   };
 }

@@ -109,6 +109,27 @@ Rules for future privileged features (Nginx, Certbot, backups):
 OpenVPS owns only files named `openvps-*`. Renewal is left to Certbot's timer so that
 certificates keep renewing even when OpenVPS is stopped or removed.
 
+## Files
+
+```
+ browser ── POST /api/files/upload (raw body) ──▶ panel ── agent socket: request line + exactly `size` bytes
+                                                    │                            │
+ browser ◀── GET /api/files/download ──────────────┘ ◀── answer line + bytes ──── agent (root)
+                                                                                    └─ spawn fileworker.js as the folder's owner
+                                                                                         (uid/gid of the root folder; stdin = upload, stdout = download)
+```
+
+- `agent/files-spec.ts`: request shapes and path validation, shared by panel, agent and helper.
+- `agent/fileworker.ts`: the helper. One JSON request in argv, bytes on stdin/stdout, one JSON answer
+  line. Resolves every path against the real root, creates folders one at a time, writes uploads to
+  `.openvps-upload-<random>` and renames them into place, never follows links out of the root.
+- `agent/files.ts`: `FilesManager` checks the folder against `files.roots`, starts at most three helpers
+  at a time as the root folder's owner (Node's `spawn` `uid`/`gid`), and relays bytes.
+- `agent/server.ts`: the connection handler works on Buffers; `files.upload` and `files.download`
+  hand the raw socket to `dispatch.stream`. `agent-client.ts` has `upload()` and `download()`.
+- `routes/files.ts` and `web/src/pages/FilesPage.tsx`: HTTP API and the UI (XHR uploads with progress,
+  folder drops through `webkitGetAsEntry`).
+
 ## Backups (v0.4)
 
 ```

@@ -544,6 +544,77 @@ export interface MongoFindResult {
   ms: number;
 }
 
+// ---- File manager ----
+
+export interface FileEntry {
+  name: string;
+  type: 'file' | 'dir' | 'link' | 'other';
+  size: number;
+  mtimeMs: number;
+  mode: number;
+  link?: 'file' | 'dir' | 'broken' | 'outside' | 'other';
+}
+
+export interface FileListing {
+  root: string;
+  path: string;
+  entries: FileEntry[];
+  truncated: boolean;
+  disk: { availableBytes: number; totalBytes: number } | null;
+}
+
+export interface FilesInfo {
+  roots: { path: string }[];
+  maxUploadBytes: number;
+  maxEditBytes: number;
+}
+
+export interface FileText {
+  name: string;
+  size: number;
+  mtimeMs: number;
+  content: string;
+}
+
+export interface UploadHandle {
+  promise: Promise<{ size: number; mtimeMs: number; replaced: boolean }>;
+  abort: () => void;
+}
+
+const q = (root: string, path: string) => `root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`;
+
+/** Link that makes the browser download a file (the session cookie authorises it). */
+export const fileDownloadUrl = (root: string, path: string) => `/api/files/download?${q(root, path)}`;
+
+/**
+ * Send one file as the raw request body, reporting progress. `path` is the file's path below the
+ * root and may contain folders, which the server creates.
+ */
+export function uploadFile(root: string, path: string, file: Blob, opts: { overwrite?: boolean; onProgress?: (sent: number, total: number) => void } = {}): UploadHandle {
+  const xhr = new XMLHttpRequest();
+  const promise = new Promise<{ size: number; mtimeMs: number; replaced: boolean }>((resolve, reject) => {
+    xhr.open('POST', `/api/files/upload?${q(root, path)}${opts.overwrite ? '&overwrite=1' : ''}`);
+    xhr.setRequestHeader('X-OpenVPS-Request', '1');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.responseType = 'json';
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) opts.onProgress?.(e.loaded, e.total);
+    };
+    xhr.onerror = () => reject(new ApiError(0, 'network', 'The connection was lost during the upload.'));
+    xhr.onabort = () => reject(new ApiError(0, 'aborted', 'The upload was cancelled.'));
+    xhr.ontimeout = () => reject(new ApiError(0, 'timeout', 'The upload timed out.'));
+    xhr.onload = () => {
+      const data = xhr.response as ({ error?: { code: string; message: string } & Record<string, unknown> } & { size: number; mtimeMs: number; replaced: boolean }) | null;
+      if (xhr.status >= 200 && xhr.status < 300 && data) return resolve(data);
+      if (xhr.status === 401) unauthListeners.forEach((l) => l());
+      const err = data?.error;
+      reject(new ApiError(xhr.status, err?.code ?? 'http_' + xhr.status, err?.message ?? `Upload failed (${xhr.status}).`, err ?? {}));
+    };
+    xhr.send(file);
+  });
+  return { promise, abort: () => xhr.abort() };
+}
+
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean; tokenIssued: boolean }>('GET', '/api/setup/status'),
   setup: (setupToken: string, username: string, password: string) =>
@@ -631,4 +702,12 @@ export const api = {
       `/api/mongo/connections/${id}/databases/${encodeURIComponent(db)}/collections/${encodeURIComponent(collection)}/stats`,
     ),
   mongoQuery: (id: number, q: MongoQuery) => request<MongoFindResult>('POST', `/api/mongo/connections/${id}/query`, q),
+  filesInfo: () => request<FilesInfo>('GET', '/api/files/roots'),
+  filesList: (root: string, path: string) => request<FileListing>('GET', `/api/files/list?${q(root, path)}`),
+  filesMkdir: (root: string, path: string) => request<{ ok: true }>('POST', '/api/files/mkdir', { root, path }),
+  filesMove: (root: string, from: string, to: string) => request<{ ok: true }>('POST', '/api/files/move', { root, from, to }),
+  filesDelete: (root: string, path: string) => request<{ ok: true; type: string }>('POST', '/api/files/delete', { root, path }),
+  filesText: (root: string, path: string) => request<FileText>('GET', `/api/files/text?${q(root, path)}`),
+  filesSaveText: (input: { root: string; path: string; content: string; mtimeMs?: number | null; create?: boolean }) =>
+    request<{ size: number; mtimeMs: number }>('PUT', '/api/files/text', input),
 };

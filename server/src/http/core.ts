@@ -38,13 +38,15 @@ export interface RouteOptions {
   auth?: boolean;
   /** Parse a JSON request body. Default true for POST/PUT/PATCH/DELETE. */
   body?: boolean;
+  /** Largest JSON body in bytes (default MAX_BODY_BYTES). */
+  bodyLimit?: number;
 }
 
 interface Route {
   method: string;
   parts: string[];
   handler: Handler;
-  opts: Required<RouteOptions>;
+  opts: Required<Omit<RouteOptions, 'bodyLimit'>> & { bodyLimit: number };
 }
 
 export class Router {
@@ -56,12 +58,13 @@ export class Router {
       method: m,
       parts: pattern.split('/').filter(Boolean),
       handler,
-      opts: { auth: opts.auth ?? true, body: opts.body ?? !['GET', 'HEAD'].includes(m) },
+      opts: { auth: opts.auth ?? true, body: opts.body ?? !['GET', 'HEAD'].includes(m), bodyLimit: opts.bodyLimit ?? MAX_BODY_BYTES },
     });
   }
 
   get(p: string, h: Handler, o?: RouteOptions) { this.add('GET', p, h, o); }
   post(p: string, h: Handler, o?: RouteOptions) { this.add('POST', p, h, o); }
+  put(p: string, h: Handler, o?: RouteOptions) { this.add('PUT', p, h, o); }
   delete(p: string, h: Handler, o?: RouteOptions) { this.add('DELETE', p, h, o); }
 
   /** Returns the matching route, or a 404/405 indication. */
@@ -134,10 +137,16 @@ export async function readJsonBody(req: IncomingMessage, limit = MAX_BODY_BYTES)
   if (len > limit) throw new HttpError(413, 'payload_too_large', 'Request body is too large.');
   const chunks: Buffer[] = [];
   let size = 0;
-  for await (const chunk of req) {
-    size += (chunk as Buffer).length;
-    if (size > limit) throw new HttpError(413, 'payload_too_large', 'Request body is too large.');
-    chunks.push(chunk as Buffer);
+  // The server has no overall request timeout (uploads can take long), so a slow JSON body is cut here.
+  const timer = setTimeout(() => req.destroy(), 30_000);
+  try {
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > limit) throw new HttpError(413, 'payload_too_large', 'Request body is too large.');
+      chunks.push(chunk as Buffer);
+    }
+  } finally {
+    clearTimeout(timer);
   }
   if (size === 0) return {};
   const ct = String(req.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase();

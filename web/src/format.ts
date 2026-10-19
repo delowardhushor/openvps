@@ -70,6 +70,12 @@ const ACTIONS: Record<string, string> = {
   'site.delete': 'Site deleted',
   'certificate.issue': 'Certificate request',
   'settings.certificates': 'Certificate email changed',
+  'file.upload': 'File uploaded',
+  'file.save': 'File edited',
+  'file.download': 'File downloaded',
+  'file.mkdir': 'Folder created',
+  'file.move': 'File or folder moved',
+  'file.delete': 'File or folder deleted',
 };
 
 export function actionLabel(a: string): string {

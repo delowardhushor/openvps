@@ -220,6 +220,19 @@ real Nginx + Certbot + Pebble test CA).
   `--max-old-space-size` (160 panel / 128 agent); backup tools run under `nice` + probed `ionice`.
   Do not add new recurring subprocesses or timers without checking this page. Still open: read PM2
   state without spawning Node, PM2 log rotation, real-host measurements.
+- **Files page / file manager (unreleased, after v0.5.1):** `docs/files.md`, `agent/files-spec.ts`,
+  `agent/fileworker.ts` (helper), `agent/files.ts`, `routes/files.ts`, `web/src/pages/FilesPage.tsx`.
+  Design rules: file work never runs as root inside the agent; a helper is spawned as the owner of
+  the configured root (`files.roots`, Node `spawn` uid/gid, only when the agent is root); uploads are
+  raw request bodies streamed panel -> agent socket -> helper stdin (`size` bytes after the request
+  line), written to a temp name and renamed; downloads are streamed the other way and always
+  attachments. The agent socket handler works on Buffers; a paused socket with unread data never
+  closes, so refused uploads are drained (`sock.resume()`). The HTTP server has no `requestTimeout`
+  (idle socket timeout 120 s instead). Panel-site Nginx config has a `^~ /api/files/` location
+  (no body limit, no buffering). Real-host behaviour (uid drop, ownership, symlinks) is only covered by
+  `scripts/ci/files-e2e.sh`, which is **not yet run in CI** (workflow step to be added by the
+  maintainer after the apps step) and has not been run on a real host. Not done: zip/unzip, search,
+  copy, chmod/chown, resumable uploads.
 - **Next: Git deployments** — repo + branch per app, per-app deploy keys, `npm ci` and
   validated build steps, release directories with atomic switch, health check, rollback,
   deployment history; also building React/static sites into their site folder. Deploys are

@@ -74,7 +74,10 @@ async function main(): Promise<void> {
     }
   }
   server.headersTimeout = 15_000;
-  server.requestTimeout = 30_000;
+  // Uploads can legitimately take long, so there is no limit on the whole request; instead an
+  // idle connection is closed, and JSON bodies are cut after 30 s (see readJsonBody).
+  server.requestTimeout = 0;
+  server.on('connection', (s) => s.setTimeout(120_000, () => s.destroy()));
   server.keepAliveTimeout = 5_000;
 
   server.on('error', (e) => {

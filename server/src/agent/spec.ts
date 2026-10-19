@@ -1,4 +1,5 @@
 import { DOMAIN, SITE_NAME, parseEmail, parseSiteSpec, type SiteSpec } from './sites-spec.ts';
+import { FILE_ACTIONS, FileSpecError, parseFileRequest, type FileAction, type FileRequest } from './files-spec.ts';
 import {
   PLAN_NAME,
   parseArtifactRef,
@@ -49,7 +50,8 @@ export type AgentRequest =
   | { action: 'backup.restore'; params: { restore: RestoreSpec } }
   | { action: 'backup.verify'; params: { ref: ArtifactRef; s3: S3Access | null; deep: boolean } }
   | { action: 'backup.delete'; params: { ref: ArtifactRef; s3: S3Access | null } }
-  | { action: 'backup.s3test'; params: { s3: S3Access } };
+  | { action: 'backup.s3test'; params: { s3: S3Access } }
+  | FileRequest;
 
 export type AgentAction = AgentRequest['action'];
 export const AGENT_ACTIONS: readonly AgentAction[] = [
@@ -76,6 +78,7 @@ export const AGENT_ACTIONS: readonly AgentAction[] = [
   'backup.verify',
   'backup.delete',
   'backup.s3test',
+  ...FILE_ACTIONS,
 ];
 
 export type AgentResponse<T = unknown> =
@@ -318,6 +321,18 @@ export function parseRequest(input: unknown): AgentRequest {
       if (specs.length > 200) throw new SpecError('specs', 'Too many sites.');
       return { action: 'site.states', params: { specs: specs.map((s) => parseSiteSpec(s)) } };
     }
+    case 'files.list':
+    case 'files.mkdir':
+    case 'files.move':
+    case 'files.delete':
+    case 'files.upload':
+    case 'files.download':
+      try {
+        return parseFileRequest(action as FileAction, p);
+      } catch (e) {
+        if (e instanceof FileSpecError) throw new SpecError(e.field, e.message);
+        throw e;
+      }
     case 'backup.status':
       return { action: 'backup.status' };
     case 'backup.run':

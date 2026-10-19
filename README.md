@@ -97,6 +97,7 @@ journalctl -u openvps -f            # logs
 | [Installation](docs/installation.md) | Requirements, options, first login, firewall |
 | [Applications](docs/applications.md) | Managing Node.js apps with PM2 |
 | [Sites & SSL](docs/sites.md) | Domains, static sites and SPAs, HTTPS certificates |
+| [Files](docs/files.md) | Browse, upload (drag and drop), download and edit files of apps and sites |
 | [Databases](docs/databases.md) | Browse MongoDB databases, collections and documents (read-only) |
 | [Backups](docs/backups.md) | Scheduled folder and MongoDB backups, cloud storage, restore |
 | [Resource footprint](docs/performance.md) | CPU, memory and disk use, and advice for small servers |

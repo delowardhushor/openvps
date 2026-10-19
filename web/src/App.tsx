@@ -10,6 +10,7 @@ import { AppsPage } from './pages/AppsPage';
 import { AppDetailPage, NewAppPage } from './pages/AppDetailPages';
 import { CertificatesPage, NewSitePage, SiteDetailPage, SitesPage } from './pages/SitesPages';
 import { ConnectionFormPage, DatabasesPage, ExplorerPage } from './pages/DatabasesPages';
+import { FilesPage } from './pages/FilesPage';
 import { BackupsPage, DestinationFormPage, PlanDetailPage, PlanFormPage } from './pages/BackupsPages';
 
 type State =
@@ -112,6 +113,7 @@ function Page({ path, user, onHost, navigate }: { path: string; user: User; onHo
     }
     return <AppDetailPage key={path} owner={m[1] as 'root' | 'apps'} name={name} navigate={navigate} />;
   }
+  if (path === '/files' || path.startsWith('/files/')) return <FilesPage path={path} navigate={navigate} />;
   if (path.startsWith('/activity')) return <ActivityPage />;
   if (path.startsWith('/settings')) return <SettingsPage user={user} />;
   if (path.startsWith('/deployments'))

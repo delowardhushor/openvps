@@ -9,7 +9,7 @@
 #   - finds the PM2 root already uses (if any) so the panel can show and control those apps
 #   - installs and starts openvps-apps.service (PM2 for ovapps) and openvps-agent.service
 #   - prepares the folder Let's Encrypt validation files are served from and checks for Nginx/Certbot
-#   - installs MongoDB Community Edition (official MongoDB apt repository) when MongoDB is not
+#   - installs MongoDB Community Edition (8.0; 7.0 on Ubuntu 20.04, from the official MongoDB apt repository) when MongoDB is not
 #     on the server, or just the MongoDB Database Tools when only the server is there
 #     (skip with: sudo openvps provision --no-mongodb, or OPENVPS_SKIP_MONGODB=1)
 # It never changes root's PM2 processes, their configuration, or files in /srv/apps.
@@ -170,10 +170,11 @@ provision_sites() {
   fi
 }
 
+# MongoDB 8.0 supports Ubuntu 22.04 and 24.04; 20.04 (focal) needs 7.0.
 MONGO_SERIES=8.0
 
 # Install MongoDB from MongoDB's own apt repository (Ubuntu only: that is all OpenVPS supports).
-#   - nothing on the server        -> mongodb-org (server, shell and Database Tools)
+#   - nothing on the server        -> mongodb-org 8.0, or 7.0 on Ubuntu 20.04 (server, shell and Database Tools)
 #   - mongod already there         -> only mongodb-database-tools; the existing server is not touched
 #   - mongodump already there      -> nothing
 # The server listens on 127.0.0.1 only and has no users; see docs/backups.md.
@@ -192,11 +193,12 @@ provision_mongodb() {
     id="$(. /etc/os-release && echo "${ID:-}")" codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
   fi
   arch="$(dpkg --print-architecture 2>/dev/null || true)"
-  if [[ "$id" != ubuntu || ! "$codename" =~ ^(jammy|noble)$ || ! "$arch" =~ ^(amd64|arm64)$ ]] || ! command -v apt-get >/dev/null 2>&1; then
-    warn "MongoDB was not installed automatically (supported: Ubuntu 22.04/24.04 on amd64/arm64). Install the MongoDB Database Tools yourself; see docs/backups.md."
+  if [[ "$id" != ubuntu || ! "$codename" =~ ^(focal|jammy|noble)$ || ! "$arch" =~ ^(amd64|arm64)$ ]] || ! command -v apt-get >/dev/null 2>&1; then
+    warn "MongoDB was not installed automatically (supported: Ubuntu 20.04/22.04/24.04 on amd64/arm64). Install the MongoDB Database Tools yourself; see docs/backups.md."
     return 0
   fi
 
+  if [[ "$codename" == focal ]]; then MONGO_SERIES=7.0; fi
   pkg=mongodb-org
   why="MongoDB is not installed"
   if command -v mongod >/dev/null 2>&1 || [[ -e /lib/systemd/system/mongod.service || -e /etc/systemd/system/mongod.service || -x /usr/local/bin/mongod || -x /snap/bin/mongod ]]; then

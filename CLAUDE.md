@@ -16,7 +16,7 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 1 Foundation: installer, auth, dashboard | v0.1.0 | ✅ released |
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
-| MongoDB browser + MongoDB auto-install | v0.5.0 | ✅ built, version bumped, release pending (see "Current state") |
+| MongoDB browser + MongoDB auto-install | v0.5.0, v0.5.1 | ✅ released (0.5.1 adds Ubuntu 20.04 install via MongoDB 7.0 and the view fix) |
 | 2b Git deployments | next | not started |
 | 4 Backups (MongoDB, files, S3) | v0.4.0 | ✅ released; encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
@@ -202,7 +202,7 @@ real Nginx + Certbot + Pebble test CA).
 - **MongoDB auto-install** (v0.5.0): `provision.sh` `provision_mongodb` installs `mongodb-org`
   8.0 from repo.mongodb.org when neither `mongodump` nor `mongod` exists, only
   `mongodb-database-tools` when a server already exists or the CPU has no AVX; Ubuntu
-  jammy/noble only; opt out `--no-mongodb` / `OPENVPS_SKIP_MONGODB=1`. It runs in provision (root,
+  focal (7.0), jammy/noble (8.0) only; opt out `--no-mongodb` / `OPENVPS_SKIP_MONGODB=1`. It runs in provision (root,
   outside the agent's `ProtectSystem=full` sandbox), not as an agent action. Never fatal.
   Not yet run on a real Ubuntu host (written and `bash -n` checked on macOS); CI's install step
   will exercise it.

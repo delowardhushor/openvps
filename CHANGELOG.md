@@ -7,6 +7,13 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.5.1]
+
+### Fixed
+- Automatic MongoDB install now also works on Ubuntu 20.04 (it installs MongoDB 7.0 there, since
+  8.0 does not support 20.04); before, `openvps provision` skipped it with a warning.
+- MongoDB browser: browsing a view failed ("singleBatch not supported in aggregation").
+
 ## [0.5.0] — MongoDB browser and automatic MongoDB install
 
 ### Added
@@ -151,7 +158,8 @@ doesn't know about the new services; later upgrades run it automatically.
 - Versioned SQLite schema migrations.
 - Documentation, CI workflow, release workflow and issue templates.
 
-[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/delowardhushor/openvps/releases/tag/v0.5.1
 [0.5.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.5.0
 [0.4.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.4.0
 [0.2.1]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.1

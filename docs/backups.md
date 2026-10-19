@@ -16,8 +16,8 @@ creates `/var/backups/openvps`, readable by root only. Then:
 - **MongoDB** needs `mongodump`/`mongorestore` (the
   [MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/installation/installation-linux/)).
   `sudo openvps provision` (also run by install and upgrade) installs what is missing from
-  MongoDB's official apt repository, on Ubuntu 22.04/24.04 (amd64/arm64):
-  - **No MongoDB on the server:** installs MongoDB Community 8.0 (`mongodb-org`: server, `mongosh`
+  MongoDB's official apt repository, on Ubuntu 20.04/22.04/24.04 (amd64/arm64):
+  - **No MongoDB on the server:** installs MongoDB Community 8.0 (7.0 on Ubuntu 20.04, which 8.0 does not support; `mongodb-org`: server, `mongosh`
     and the tools) and starts it. It listens on `127.0.0.1:27017` only and has **no users and no
     authentication** yet, so any local account can read it. Create an admin user and turn on
     `security.authorization` in `/etc/mongod.conf` before putting real data in it.

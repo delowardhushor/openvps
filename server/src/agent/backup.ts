@@ -325,7 +325,7 @@ export class BackupManager {
     for (const [i, s] of spec.sources.entries()) {
       if (s.type === 'files') this.checkSourcePath(s.path, `sources[${i}]`);
       else if (!this.o.mongodumpBin) {
-        throw new AgentError('tool_missing', 'mongodump is not installed. Install the MongoDB Database Tools (see docs/backups.md) to back up MongoDB.');
+        throw new AgentError('tool_missing', 'mongodump is not installed. Run `sudo openvps provision` on the server to install it (see docs/backups.md).');
       }
     }
     return this.start('backup', spec.plan, secretsOf(spec.mongoUris, spec.s3), (ctx) => this.runBackup(spec, ctx));
@@ -616,7 +616,7 @@ export class BackupManager {
       const member = manifest.members.find((m) => m.file === it.file);
       if (!member) throw new AgentError('invalid', `This backup does not contain ${it.file}.`, 'items');
       if (member.kind === 'mongodb') {
-        if (!this.o.mongorestoreBin) throw new AgentError('tool_missing', 'mongorestore is not installed. Install the MongoDB Database Tools (see docs/backups.md).');
+        if (!this.o.mongorestoreBin) throw new AgentError('tool_missing', 'mongorestore is not installed. Run `sudo openvps provision` on the server to install it (see docs/backups.md).');
         if (!spec.mongoUris[member.source]) throw new AgentError('invalid', `No MongoDB connection is configured for "${member.source}".`, 'items');
       }
       return { member, item: it };

@@ -479,3 +479,68 @@ fieldset.field legend { font-weight: 550; margin-bottom: 6px; padding: 0; }
 .inline-field .grow { flex: 1 1 200px; width: auto; min-width: 0; }
 .field .segmented label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; }
 .field .alert { margin: 8px 0 0; }
+
+/* ---------- MongoDB browser ---------- */
+.mongo-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+.mongo-tree { padding: 8px; position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
+.mongo-tree h2 { padding: 6px 8px 2px; margin: 0; }
+.tree-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; border-radius: 6px; cursor: pointer; min-width: 0; }
+.tree-item:hover { background: var(--surface-2); }
+.tree-item.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.tree-item .tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-item .tree-meta { color: var(--text-2); font-size: 12px; font-weight: 400; white-space: nowrap; }
+.tree-caret { width: 12px; color: var(--text-2); flex-shrink: 0; font-size: 11px; }
+.tree-children { margin-left: 14px; border-left: 1px solid var(--border); padding-left: 4px; }
+.tree-children .tree-item { padding: 4px 8px; }
+.mongo-bar { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+.mongo-bar .field { margin: 0; }
+.mongo-bar .grow { flex: 1; min-width: 240px; }
+.mongo-bar input, .mongo-adv input { font-family: var(--mono); font-size: 13px; }
+.mongo-adv { display: grid; grid-template-columns: 1fr 1fr 110px; gap: 8px; margin-bottom: 8px; }
+.mongo-adv .field { margin: 0; }
+.mongo-adv label { font-size: 12px; margin-bottom: 3px; }
+.mongo-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.mongo-tab { padding: 8px 14px; border: 0; background: none; font: inherit; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.mongo-tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.mongo-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; color: var(--text-2); font-size: 13px; }
+.mongo-status .spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); color: var(--text-2); padding: 4px 10px; font: inherit; cursor: pointer; }
+.seg button.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.doc-card { padding: 8px 10px 8px 6px; margin-bottom: 8px; position: relative; }
+.doc-card .doc-tools { position: absolute; top: 6px; right: 8px; opacity: 0; transition: opacity 0.1s; }
+.doc-card:hover .doc-tools, .doc-card:focus-within .doc-tools { opacity: 1; }
+.bson-tree { font-family: var(--mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto; }
+.bson-row { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+.bson-branch { cursor: pointer; }
+.bson-branch:hover { background: var(--surface-2); }
+.bson-caret { width: 14px; color: var(--text-2); text-align: center; }
+.bson-key { color: var(--text); font-weight: 600; }
+.bson-colon { color: var(--text-2); }
+.bson-sum { color: var(--text-2); }
+.bson-val { white-space: pre; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.bson-type { color: var(--text-2); font-size: 11px; margin-left: 4px; opacity: 0.8; }
+.bson-str { color: #0b7a3b; }
+.bson-num { color: #1d4ed8; }
+.bson-id { color: #9a3412; }
+.bson-date { color: #7c3aed; }
+.bson-bool { color: #b45309; }
+.bson-null { color: var(--text-2); font-style: italic; }
+.bson-misc { color: var(--text-2); }
+@media (prefers-color-scheme: dark) {
+  .bson-str { color: #4ade80; }
+  .bson-num { color: #7aa7ff; }
+  .bson-id { color: #fdba74; }
+  .bson-date { color: #c4b5fd; }
+  .bson-bool { color: #fbbf24; }
+}
+.cell-trunc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat-grid > div { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.stat-grid dt { color: var(--text-2); font-size: 12px; }
+.stat-grid dd { margin: 2px 0 0; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) {
+  .mongo-layout { grid-template-columns: 1fr; }
+  .mongo-tree { position: static; max-height: 260px; }
+  .mongo-adv { grid-template-columns: 1fr; }
+}

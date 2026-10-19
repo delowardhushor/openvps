@@ -137,4 +137,19 @@ export const migrations: Migration[] = [
       CREATE INDEX backup_runs_status ON backup_runs(status);
     `,
   },
+  {
+    version: 5,
+    name: 'mongo-connections',
+    sql: `
+      CREATE TABLE mongo_connections (
+        id          INTEGER PRIMARY KEY,
+        name        TEXT NOT NULL UNIQUE,
+        uri_sealed  TEXT NOT NULL,              -- AES-256-GCM sealed connection string (holds the password)
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        last_ok_at  INTEGER,
+        last_error  TEXT
+      );
+    `,
+  },
 ];

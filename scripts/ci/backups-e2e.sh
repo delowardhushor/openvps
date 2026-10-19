@@ -560,7 +560,81 @@ if [[ -z "$LOCAL" ]]; then
   check "agent logged the backup work" "$LOGS" 'backup job finished'
 fi
 
-echo "== 18. delete plans and storage"
+echo "== 18. the MongoDB browser against the real, authenticated MongoDB (SCRAM, types, paging)"
+mq 'const b = db.getSiblingDB("browsedb");
+    b.dropDatabase();
+    b.items.insertMany(Array.from({length: 25}, (_, i) => ({
+      _id: i, name: "item-" + i, qty: NumberInt(i), big: NumberLong("9007199254740993"), price: i * 1.5, cost: NumberDecimal("1.10"),
+      at: ISODate("2024-01-01T00:00:00Z"), ref: ObjectId("507f1f77bcf86cd799439011"), uid: UUID("01234567-89ab-cdef-0123-456789abcdef"),
+      bin: BinData(0, "aGVsbG8="), tags: ["a", "b"], nested: {x: {y: 1}}, big_text: "z".repeat(100000) })));
+    b.items.createIndex({name: 1}, {unique: true});
+    b.createView("item_names", "items", [{$project: {name: 1}}]);
+    db.getSiblingDB("admin").createUser({user: "legacy", pwd: "Pa55-legacy", roles: [{role: "read", db: "browsedb"}], mechanisms: ["SCRAM-SHA-1"]})' >/dev/null
+R="$(api "${H[@]}" -d "{\"uri\":\"$MONGO_URI\"}" "$B/api/mongo/test")"
+check "test connection works over SCRAM" "$R" '"authenticated":true'
+check "test reports the server version" "$R" '"version":"'
+check "test reports it can list databases" "$R" '"canListDatabases":true'
+R="$(api "${H[@]}" -d "{\"uri\":\"${MONGO_URI/$MONGO_PASS_ENC/wrong-Pa55}\"}" "$B/api/mongo/test")"
+check "wrong password is an auth error" "$R" 'mongo_auth'
+refute "wrong password is not echoed" "$R" 'wrong-Pa55'
+R="$(api "${H[@]}" -d '{"uri":"mongodb://127.0.0.1:1/?connectTimeoutMS=1000"}' "$B/api/mongo/test")"
+check "unreachable server is reported" "$R" 'mongo_unreachable'
+R="$(api "${H[@]}" -d "{\"name\":\"ci mongo\",\"uri\":\"$MONGO_URI\"}" "$B/api/mongo/connections")"
+MID="$(echo "$R" | jq -r .connection.id)"
+refute "saved connection does not return the password" "$R" 'w0rd'
+R="$(api "$B/api/mongo/connections/$MID/databases")"
+check "databases include browsedb" "$R" '"browsedb"'
+check "databases include appdb" "$R" '"appdb"'
+R="$(api "$B/api/mongo/connections/$MID/databases/browsedb/collections")"
+check "collections: items" "$R" '"name":"items"'
+check "collections: the view" "$R" '"type":"view"'
+R="$(api "$B/api/mongo/connections/$MID/databases/browsedb/collections/items/stats")"
+eq "stats count" "$(echo "$R" | jq -r .stats.count)" 25
+eq "two indexes" "$(echo "$R" | jq -r '.indexes | length')" 2
+eq "unique index flagged" "$(echo "$R" | jq -r '.indexes[] | select(.name=="name_1") | .unique')" true
+R="$(api "$B/api/mongo/connections/$MID/databases/browsedb/collections/item_names/stats")"
+check "a view has no storage statistics but does not fail" "$R" '"indexes"'
+Q() { api "${H[@]}" -d "$1" "$B/api/mongo/connections/$MID/query"; }
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ qty: { $gte: 20 } }","sort":"{ _id: -1 }","limit":3,"skip":1}')"
+eq "filter total" "$(echo "$R" | jq -r .total)" 5
+eq "sorted, skipped, limited" "$(echo "$R" | jq -rc '[.documents[]._id."$numberInt"]')" '["23","22","21"]'
+D="$(Q '{"db":"browsedb","collection":"items","filter":"{ _id: 1 }","limit":1}' | jq -c '.documents[0]')"
+eq "Int32 type kept" "$(echo "$D" | jq -r '.qty."$numberInt"')" 1
+eq "Int64 keeps full precision" "$(echo "$D" | jq -r '.big."$numberLong"')" 9007199254740993
+eq "Double type kept" "$(echo "$D" | jq -r '.price."$numberDouble"')" 1.5
+eq "Decimal128 type kept" "$(echo "$D" | jq -r '.cost."$numberDecimal"')" 1.10
+eq "Date type kept" "$(echo "$D" | jq -r '.at."$date"')" 2024-01-01T00:00:00.000Z
+eq "ObjectId type kept" "$(echo "$D" | jq -r '.ref."$oid"')" 507f1f77bcf86cd799439011
+eq "UUID shown as UUID" "$(echo "$D" | jq -r '.uid."$uuid"')" 01234567-89ab-cdef-0123-456789abcdef
+eq "Binary base64" "$(echo "$D" | jq -r '.bin."$binary".base64')" aGVsbG8=
+eq "huge strings are cut" "$(echo "$D" | jq -r '.big_text."$truncated".length')" 100000
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ ref: ObjectId(\"507f1f77bcf86cd799439011\"), at: { $gte: ISODate(\"2024-01-01\") }, name: /^item-1/ }","limit":100}')"
+eq "ObjectId + ISODate + regex filter" "$(echo "$R" | jq -r .total)" 11
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ uid: UUID(\"01234567-89ab-cdef-0123-456789abcdef\") }","limit":1}')"
+eq "UUID filter" "$(echo "$R" | jq -r .total)" 25
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ _id: 3 }","projection":"{ name: 1 }"}')"
+eq "projection" "$(echo "$R" | jq -rc '.documents[0] | keys')" '["_id","name"]'
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ $where: \"sleep(100)\" }"}')"
+check "server-side JavaScript is refused" "$R" 'JavaScript'
+R="$(Q '{"db":"browsedb","collection":"items","filter":"{ qty: "}')"
+check "a bad filter is a field error" "$R" '"field":"filter"'
+R="$(Q '{"db":"browsedb","collection":"item_names","limit":2}')"
+check "a view can be browsed" "$R" '"name":"item-0"'
+R="$(api "${H[@]}" -d "{\"uri\":\"mongodb://legacy:Pa55-legacy@127.0.0.1:$MONGO_PORT/browsedb?authSource=admin\"}" "$B/api/mongo/test")"
+check "SCRAM-SHA-1 only user can sign in" "$R" '"authenticated":true'
+R="$(api "${H[@]}" -d "{\"name\":\"ci legacy\",\"uri\":\"mongodb://legacy:Pa55-legacy@127.0.0.1:$MONGO_PORT/browsedb?authSource=admin\"}" "$B/api/mongo/connections")"
+LID="$(echo "$R" | jq -r .connection.id)"
+R="$(api "$B/api/mongo/connections/$LID/databases")"
+check "a read-only user sees the permitted database" "$R" '"browsedb"'
+R="$(api "${H[@]}" -d '{"db":"appdb","collection":"users","limit":1}' "$B/api/mongo/connections/$LID/query")"
+check "and is refused elsewhere" "$R" 'not allowed'
+AUDIT="$(api "$B/api/audit?action=mongo.&limit=50")"
+check "audit has mongo.connection_create" "$AUDIT" 'mongo.connection_create'
+refute "audit does not contain the password" "$AUDIT" 'w0rd'
+for i in "$MID" "$LID"; do check "connection $i deleted" "$(api "${H[@]}" -X DELETE "$B/api/mongo/connections/$i")" '"ok":true'; done
+mq 'db.getSiblingDB("browsedb").dropDatabase(); db.getSiblingDB("admin").dropUser("legacy")' >/dev/null
+
+echo "== 19. delete plans and storage"
 R="$(api "${H[@]}" -X DELETE "$B/api/backups/destinations/ci-bucket")"
 check "storage in use cannot be deleted" "$R" 'Still used by'
 for p in nightly media partial badmongo sched; do check "plan $p deleted" "$(api "${H[@]}" -X DELETE "$B/api/backups/plans/$p")" '"ok":true'; done

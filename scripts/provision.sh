@@ -9,6 +9,9 @@
 #   - finds the PM2 root already uses (if any) so the panel can show and control those apps
 #   - installs and starts openvps-apps.service (PM2 for ovapps) and openvps-agent.service
 #   - prepares the folder Let's Encrypt validation files are served from and checks for Nginx/Certbot
+#   - installs MongoDB Community Edition (official MongoDB apt repository) when MongoDB is not
+#     on the server, or just the MongoDB Database Tools when only the server is there
+#     (skip with: sudo openvps provision --no-mongodb, or OPENVPS_SKIP_MONGODB=1)
 # It never changes root's PM2 processes, their configuration, or files in /srv/apps.
 
 set -Eeuo pipefail
@@ -167,19 +170,94 @@ provision_sites() {
   fi
 }
 
+MONGO_SERIES=8.0
+
+# Install MongoDB from MongoDB's own apt repository (Ubuntu only: that is all OpenVPS supports).
+#   - nothing on the server        -> mongodb-org (server, shell and Database Tools)
+#   - mongod already there         -> only mongodb-database-tools; the existing server is not touched
+#   - mongodump already there      -> nothing
+# The server listens on 127.0.0.1 only and has no users; see docs/backups.md.
+provision_mongodb() {
+  if command -v mongodump >/dev/null 2>&1 && command -v mongorestore >/dev/null 2>&1; then
+    ok "mongodump found: MongoDB backups are available"
+    return 0
+  fi
+  if [[ "${OPENVPS_SKIP_MONGODB:-0}" == 1 ]]; then
+    warn "mongodump is not installed (skipped by request). Install the MongoDB Database Tools to back up MongoDB; see docs/backups.md."
+    return 0
+  fi
+  local id="" codename="" arch pkg why
+  if [[ -r /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    id="$(. /etc/os-release && echo "${ID:-}")" codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+  fi
+  arch="$(dpkg --print-architecture 2>/dev/null || true)"
+  if [[ "$id" != ubuntu || ! "$codename" =~ ^(jammy|noble)$ || ! "$arch" =~ ^(amd64|arm64)$ ]] || ! command -v apt-get >/dev/null 2>&1; then
+    warn "MongoDB was not installed automatically (supported: Ubuntu 22.04/24.04 on amd64/arm64). Install the MongoDB Database Tools yourself; see docs/backups.md."
+    return 0
+  fi
+
+  pkg=mongodb-org
+  why="MongoDB is not installed"
+  if command -v mongod >/dev/null 2>&1 || [[ -e /lib/systemd/system/mongod.service || -e /etc/systemd/system/mongod.service || -x /usr/local/bin/mongod || -x /snap/bin/mongod ]]; then
+    pkg=mongodb-database-tools
+    why="MongoDB is installed but its backup tools are not"
+  elif [[ "$arch" == amd64 ]] && ! grep -qw avx /proc/cpuinfo 2>/dev/null; then
+    # MongoDB 5.0+ needs AVX on x86-64; the tools do not.
+    pkg=mongodb-database-tools
+    why="this CPU has no AVX support, which the MongoDB server needs"
+  fi
+
+  info "$why. Installing $pkg (MongoDB Community $MONGO_SERIES) from repo.mongodb.org"
+  local keyring="/usr/share/keyrings/mongodb-server-$MONGO_SERIES.gpg"
+  local list="/etc/apt/sources.list.d/mongodb-org-$MONGO_SERIES.list"
+  command -v curl >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 || {
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl gnupg >/dev/null 2>&1 || {
+      warn "Could not install curl/gnupg, so MongoDB was not installed. Install it by hand; see docs/backups.md."
+      return 0
+    }
+  }
+  local tmp
+  tmp="$(mktemp)"
+  if ! curl -fsSL --retry 3 --max-time 60 "https://pgp.mongodb.com/server-$MONGO_SERIES.asc" -o "$tmp" \
+    || ! gpg --batch --yes --dearmor -o "$keyring" "$tmp"; then
+    rm -f "$tmp"
+    warn "Could not fetch the MongoDB signing key, so MongoDB was not installed. Check this server's internet access, then run: sudo openvps provision"
+    return 0
+  fi
+  rm -f "$tmp"
+  chmod 0644 "$keyring"
+  printf 'deb [ arch=%s signed-by=%s ] https://repo.mongodb.org/apt/ubuntu %s/mongodb-org/%s multiverse\n' "$arch" "$keyring" "$codename" "$MONGO_SERIES" >"$list"
+  if ! DEBIAN_FRONTEND=noninteractive apt-get update -o Dir::Etc::sourcelist="$list" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 >/dev/null 2>&1 \
+    || ! DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg" >/dev/null 2>&1; then
+    warn "Installing $pkg failed. Try it by hand to see the error: sudo apt-get update && sudo apt-get install -y $pkg"
+    return 0
+  fi
+  ok "Installed $pkg (MongoDB Community $MONGO_SERIES)"
+  if [[ "$pkg" == mongodb-org ]]; then
+    systemctl enable --now mongod >/dev/null 2>&1 || warn "MongoDB was installed but could not be started: check 'systemctl status mongod'"
+    if systemctl is-active --quiet mongod; then
+      ok "MongoDB is running on 127.0.0.1:27017 (local only, no users yet; see docs/backups.md)"
+    fi
+  fi
+}
+
 provision_backups() {
   # Local backups hold database dumps and app files: root only.
   install -d -m 0700 -o root -g root "$BACKUP_DIR"
   command -v tar >/dev/null 2>&1 || warn "tar is not installed, so backups are unavailable. Install it with: sudo apt install tar"
-  if command -v mongodump >/dev/null 2>&1; then
-    ok "mongodump found: MongoDB backups are available"
-  else
-    warn "mongodump is not installed (only needed to back up MongoDB). See docs/backups.md for installing the MongoDB Database Tools."
-  fi
+  provision_mongodb || warn "MongoDB setup failed; backups of folders still work."
   ok "Backups are stored in $BACKUP_DIR (root only)"
 }
 
 main_provision() {
+  local a
+  for a in "$@"; do
+    case "$a" in
+      --no-mongodb) OPENVPS_SKIP_MONGODB=1 ;;
+      *) die "Unknown option: $a (supported: --no-mongodb)" ;;
+    esac
+  done
   [[ $EUID -eq 0 ]] || die "Run as root: sudo openvps provision"
   [[ -d "$ETC" ]] || die "OpenVPS is not installed ($ETC is missing)."
   info "Setting up applications, sites and backups"

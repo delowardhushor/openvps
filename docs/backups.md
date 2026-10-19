@@ -13,11 +13,24 @@ The agent does the work, so run `sudo openvps provision` once (it also runs on u
 creates `/var/backups/openvps`, readable by root only. Then:
 
 - **Folders** need nothing else (`tar` is part of Ubuntu).
-- **MongoDB** needs `mongodump`/`mongorestore` from the
-  [MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/installation/installation-linux/).
-  They are a separate download from the database server itself. The page tells you if they are
-  missing.
+- **MongoDB** needs `mongodump`/`mongorestore` (the
+  [MongoDB Database Tools](https://www.mongodb.com/docs/database-tools/installation/installation-linux/)).
+  `sudo openvps provision` (also run by install and upgrade) installs what is missing from
+  MongoDB's official apt repository, on Ubuntu 22.04/24.04 (amd64/arm64):
+  - **No MongoDB on the server:** installs MongoDB Community 8.0 (`mongodb-org`: server, `mongosh`
+    and the tools) and starts it. It listens on `127.0.0.1:27017` only and has **no users and no
+    authentication** yet, so any local account can read it. Create an admin user and turn on
+    `security.authorization` in `/etc/mongod.conf` before putting real data in it.
+  - **MongoDB already installed** (any way): only `mongodb-database-tools` is added. Your server,
+    its version and its configuration are not touched.
+  - **CPU without AVX** (some old VMs; MongoDB 5+ needs it): only the tools are installed.
+  - Don't want it? Run `sudo openvps provision --no-mongodb` (or set `OPENVPS_SKIP_MONGODB=1`)
+    and install the tools yourself. If the install fails, provision prints the reason as a
+    warning and carries on; folder backups are unaffected.
+  The Backups page tells you if the tools are missing.
 - **Cloud storage** needs an account with any S3-compatible provider and a private bucket.
+
+To look at the data itself, see [Databases](databases.md).
 
 ## Cloud storage
 
@@ -145,7 +158,7 @@ systemd sandbox makes `/etc` read-only, so restoring into `/etc/...` needs a mat
 
 | Message | Meaning / fix |
 |---|---|
-| `mongodump is not installed` | Install the MongoDB Database Tools |
+| `mongodump is not installed` | Run `sudo openvps provision` (installs MongoDB / the Database Tools), or install the tools by hand |
 | `AccessDenied` / `SignatureDoesNotMatch` | Wrong key, secret or region, or the key lacks permission; **Test connection** |
 | `NoSuchBucket` | The bucket name or endpoint is wrong (or path-style is set the wrong way) |
 | `Another backup task is already running` | The agent runs one backup task at a time; try again shortly |

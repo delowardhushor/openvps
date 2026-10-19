@@ -16,8 +16,9 @@ developers running Node.js apps. Repo: https://github.com/delowardhushor/openvps
 | 1 Foundation: installer, auth, dashboard | v0.1.0 | ✅ released |
 | 2a Applications: PM2, agent, env vars | v0.2.0, v0.2.1 (provision hang fix) | ✅ released |
 | 3 Sites, domains, SSL (Nginx + Certbot) | v0.3.0 | ✅ built; release in progress (see "Current state") |
+| MongoDB browser + MongoDB auto-install | v0.5.0 | ✅ built, version bumped, release pending (see "Current state") |
 | 2b Git deployments | next | not started |
-| 4 Backups (MongoDB, files, S3) | v0.4.0 | ✅ built, version bumped, release pending; encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
+| 4 Backups (MongoDB, files, S3) | v0.4.0 | ✅ released; encryption and panel-DB backup still open; real-tools CI test written (`backups-e2e.sh`), workflow step to be added by the maintainer |
 | 5 Public release / 6 Future (multi-server, teams, MFA) | later | — |
 
 Details: `docs/roadmap.md`, `CHANGELOG.md`.
@@ -68,7 +69,7 @@ server/src/
   context.ts                         AppContext passed to routes (db, stores, agent client, ...)
   http/core.ts, http/static.ts       tiny router, HttpError, SPA static serving
   auth/                              scrypt passwords, sessions, rate limit, setup token, users
-  db/index.ts, db/migrations.ts      node:sqlite; forward-only numbered migrations (1 initial, 2 apps, 3 sites, 4 backups)
+  db/index.ts, db/migrations.ts      node:sqlite; forward-only numbered migrations (1 initial, 2 apps, 3 sites, 4 backups, 5 mongo_connections)
   routes/system.ts|auth.ts|apps.ts|sites.ts|backups.ts   HTTP API (agentError() maps agent codes -> HTTP)
   apps-store.ts, sites-store.ts      SQLite records for apps (sealed env) and sites (spec JSON)
   backups-store.ts, backups.ts       backup plans/destinations/run history; BackupService = job polling + scheduler
@@ -87,6 +88,8 @@ server/src/
   agent/backup-spec.ts               backup model, schedule maths (nextRun), manifest, all validation (panel+agent)
   agent/backup.ts                    BackupManager: jobs, tar/mongodump, artifacts+sidecar manifest, retention, restore, verify
   agent/s3.ts                        SigV4 S3 client on node:http(s) (multipart, list, head, get, delete)
+  mongo/                             panel-side MongoDB browser: bson, query-lang, uri, scram, client (OP_MSG), pool, browse (read-only commands)
+  mongo-store.ts, routes/mongo.ts    saved connections (sealed) and /api/mongo/*
 server/test/                         node:test suites; agent-fixture.ts (fake pm2 + temp nginx tree + fake certbot + fake mongodump/restore); fake-s3.ts (in-memory S3)
 web/src/                             React (Vite) SPA, no UI library; plain CSS in styles.css (light/dark tokens)
   api.ts (typed client), router.ts, format.ts, components/ (BackupBits, PlanForm, ...), pages/ (BackupsPages)
@@ -188,6 +191,21 @@ real Nginx + Certbot + Pebble test CA).
   unproven. **MinIO is no longer downloadable** (binaries 410 Gone, Docker Hub repo removed, 2025),
   so the script uses SeaweedFS 4.48 (pinned, SHA-256 checked) as the S3 server. The workflow step
   must be added to `.github/workflows/ci.yml` by hand (after the sites step, before the reinstall).
+- **v0.5.0 (MongoDB browser + auto-install) is built and version-bumped in the 4 places; the maintainer commits, tags `v0.5.0` and pushes.** Both features are untested on a real Ubuntu host / real mongod until CI's install step and `backups-e2e.sh` section 18 run.
+- **MongoDB browser** (v0.5.0): `server/src/mongo/*` (bson, query-lang, uri, scram,
+  client, pool, browse), `mongo-store.ts`, `routes/mongo.ts`, `web/.../DatabasesPages.tsx` +
+  `BsonView.tsx`, docs/databases.md, migration 5 `mongo_connections`. Runs **in the panel**, not the
+  agent. Read-only by design: `browse.ts` is the full command list. Tested with an in-process fake
+  server (`server/test/fake-mongo.ts`) and the RFC 7677 SCRAM vector; **not yet run against a real
+  mongod**; section 18 of `scripts/ci/backups-e2e.sh` does that in CI. Follow-ups: editing
+  documents, aggregation, export, tlsCAFile, SASLprep for non-ASCII passwords.
+- **MongoDB auto-install** (v0.5.0): `provision.sh` `provision_mongodb` installs `mongodb-org`
+  8.0 from repo.mongodb.org when neither `mongodump` nor `mongod` exists, only
+  `mongodb-database-tools` when a server already exists or the CPU has no AVX; Ubuntu
+  jammy/noble only; opt out `--no-mongodb` / `OPENVPS_SKIP_MONGODB=1`. It runs in provision (root,
+  outside the agent's `ProtectSystem=full` sandbox), not as an agent action. Never fatal.
+  Not yet run on a real Ubuntu host (written and `bash -n` checked on macOS); CI's install step
+  will exercise it.
 - Backup follow-ups not done: client-side encryption, a dashboard warning when the last backup
   failed / is overdue, backing up OpenVPS's own DB + `secret.key`, restoring Mongo to a different
   connection from the UI (API/agent accept per-source URIs; UI only uses the plan's), testing

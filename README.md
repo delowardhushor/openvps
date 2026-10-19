@@ -36,6 +36,9 @@ teams running Node.js applications on Ubuntu.
 - **Backups.** Schedule backups of app folders and MongoDB (`mongodump`) to this server and to
   any S3-compatible storage (Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO...), with
   retention, checksum verification and a guided restore that warns before overwriting anything.
+- **MongoDB browser.** Look at databases, collections and documents from the panel, a bit like
+  Compass: filter and sort with shell-style queries, page through results, see types, indexes and
+  sizes. Read-only, with no npm dependency (the MongoDB protocol is implemented in-house).
 - **Activity log.** Sign-ins and administrative actions, with secrets redacted.
 - **Local recovery CLI.** `openvps reset-password`, `unlock`, `revoke-sessions`,
   `setup-token`, `backup-db` and more.
@@ -94,6 +97,7 @@ journalctl -u openvps -f            # logs
 | [Installation](docs/installation.md) | Requirements, options, first login, firewall |
 | [Applications](docs/applications.md) | Managing Node.js apps with PM2 |
 | [Sites & SSL](docs/sites.md) | Domains, static sites and SPAs, HTTPS certificates |
+| [Databases](docs/databases.md) | Browse MongoDB databases, collections and documents (read-only) |
 | [Backups](docs/backups.md) | Scheduled folder and MongoDB backups, cloud storage, restore |
 | [Configuration](docs/configuration.md) | Every setting in `/etc/openvps/config.json` |
 | [Upgrading](docs/upgrading.md) | Upgrade procedure and automatic rollback |

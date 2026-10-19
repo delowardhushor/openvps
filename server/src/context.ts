@@ -11,6 +11,8 @@ import type { AgentClient } from './agent-client.ts';
 import type { AppsStore } from './apps-store.ts';
 import type { SitesStore } from './sites-store.ts';
 import type { BackupService } from './backups.ts';
+import type { MongoStore } from './mongo-store.ts';
+import type { MongoPool } from './mongo/pool.ts';
 
 /** Shared services handed to route modules. */
 export interface AppContext {
@@ -29,5 +31,7 @@ export interface AppContext {
   apps: AppsStore;
   sites: SitesStore;
   backups: BackupService;
+  mongo: MongoStore;
+  mongoPool: MongoPool;
   startedAt: number;
 }

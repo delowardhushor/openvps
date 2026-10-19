@@ -90,6 +90,7 @@ async function main(): Promise<void> {
     log.info('shutting down', { signal });
     app.metrics.stop();
     app.backups.stop();
+    app.mongoPool.closeAll();
     server.close(() => {
       app.db.close();
       process.exit(0);

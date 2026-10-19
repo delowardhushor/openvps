@@ -468,6 +468,82 @@ export interface RestoreInput {
   confirm: string;
 }
 
+export interface MongoConnection {
+  id: number;
+  name: string;
+  /** Connection string with the password hidden. */
+  uri: string;
+  createdAt: number;
+  updatedAt: number;
+  lastOkAt: number | null;
+  lastError: string | null;
+}
+
+export interface MongoServer {
+  version: string | null;
+  topology: string;
+  setName: string | null;
+  role: string | null;
+  host: string;
+  port: number;
+  tls: boolean;
+  authenticated: boolean;
+  canListDatabases: boolean;
+}
+
+export interface MongoDatabase {
+  name: string;
+  sizeOnDisk: number | null;
+  empty: boolean;
+}
+
+export interface MongoCollection {
+  name: string;
+  type: string;
+  capped: boolean;
+  viewOn: string | null;
+  system: boolean;
+}
+
+export interface MongoStats {
+  count: number | null;
+  size: number | null;
+  avgObjSize: number | null;
+  storageSize: number | null;
+  totalIndexSize: number | null;
+  indexCount: number | null;
+  capped: boolean;
+}
+
+export interface MongoIndex {
+  name: string;
+  key: unknown;
+  unique: boolean;
+  sparse: boolean;
+  ttlSeconds: number | null;
+  partial: unknown | null;
+  sizeBytes: number | null;
+}
+
+export interface MongoQuery {
+  db: string;
+  collection: string;
+  filter: string;
+  sort: string;
+  projection: string;
+  skip: number;
+  limit: number;
+}
+
+export interface MongoFindResult {
+  /** Documents in canonical Extended JSON. */
+  documents: unknown[];
+  total: number | null;
+  skip: number;
+  limit: number;
+  ms: number;
+}
+
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean; tokenIssued: boolean }>('GET', '/api/setup/status'),
   setup: (setupToken: string, username: string, password: string) =>
@@ -541,4 +617,18 @@ export const api = {
     request<{ destination: BackupDestination }>('PUT', `/api/backups/destinations/${encodeURIComponent(name)}`, input),
   deleteDestination: (name: string) => request<{ ok: true }>('DELETE', `/api/backups/destinations/${encodeURIComponent(name)}`),
   testDestination: (input: DestinationInput) => request<{ ok: true; ms: number }>('POST', '/api/backups/destinations/test', input),
+  mongoConnections: () => request<{ connections: MongoConnection[] }>('GET', '/api/mongo/connections'),
+  createMongoConnection: (name: string, uri: string) => request<{ connection: MongoConnection }>('POST', '/api/mongo/connections', { name, uri }),
+  updateMongoConnection: (id: number, name: string, uri: string) => request<{ connection: MongoConnection }>('PUT', `/api/mongo/connections/${id}`, { name, uri }),
+  deleteMongoConnection: (id: number) => request<{ ok: true }>('DELETE', `/api/mongo/connections/${id}`),
+  testMongo: (input: { uri?: string; id?: number }) => request<{ ok: true; ms: number; server: MongoServer }>('POST', '/api/mongo/test', input),
+  mongoDatabases: (id: number) => request<{ databases: MongoDatabase[]; note: string | null; server: MongoServer | null }>('GET', `/api/mongo/connections/${id}/databases`),
+  mongoCollections: (id: number, db: string) =>
+    request<{ collections: MongoCollection[] }>('GET', `/api/mongo/connections/${id}/databases/${encodeURIComponent(db)}/collections`),
+  mongoStats: (id: number, db: string, collection: string) =>
+    request<{ stats: MongoStats | null; indexes: MongoIndex[]; note: string | null }>(
+      'GET',
+      `/api/mongo/connections/${id}/databases/${encodeURIComponent(db)}/collections/${encodeURIComponent(collection)}/stats`,
+    ),
+  mongoQuery: (id: number, q: MongoQuery) => request<MongoFindResult>('POST', `/api/mongo/connections/${id}/query`, q),
 };

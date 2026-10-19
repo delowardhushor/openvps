@@ -14,6 +14,8 @@ import { SitesStore } from './sites-store.ts';
 import { SecretBox } from './secretbox.ts';
 import { BackupsStore } from './backups-store.ts';
 import { BackupService } from './backups.ts';
+import { MongoStore } from './mongo-store.ts';
+import { MongoPool } from './mongo/pool.ts';
 import { mkdirSync } from 'node:fs';
 
 export interface BootstrapOptions {
@@ -59,6 +61,8 @@ export async function bootstrap(config: Config, opts: BootstrapOptions = {}): Pr
     apps: new AppsStore(db, box),
     sites: new SitesStore(db),
     backups: new BackupService({ agent, audit, log, store: new BackupsStore(db, box) }),
+    mongo: new MongoStore(db, box),
+    mongoPool: new MongoPool(),
     startedAt: Date.now(),
   };
 }

@@ -51,6 +51,10 @@ instances in CI, and the security review.
 
 **Exit criteria:** installation, deployment, backup, restore and recovery tests pass.
 
+**v0.5 ✅ (MongoDB browser):** read-only Databases page (databases, collections,
+documents with shell-style filter/sort/projection, indexes, sizes). **Next for it:** editing
+documents, aggregation, export.
+
 ## Phase 5: Public release
 
 Complete documentation, GitHub Releases, clean-VPS install testing, public beta, then stable.

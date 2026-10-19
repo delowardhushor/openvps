@@ -106,11 +106,12 @@ export function BackupsPage({ navigate }: { navigate: (p: string) => void }) {
       {data?.status && !data.status.tar && <div className="alert alert-error">The <code>tar</code> program was not found, so backups cannot run.</div>}
       {data?.status && needsMongo && !data.status.mongodump && (
         <div className="alert alert-warn">
-          A plan backs up MongoDB, but <code>mongodump</code> is not installed. Install the{' '}
+          A plan backs up MongoDB, but <code>mongodump</code> is not installed. Run <code>sudo openvps provision</code> on the server
+          to install MongoDB Community (or the{' '}
           <a href="https://www.mongodb.com/docs/database-tools/installation/installation-linux/" target="_blank" rel="noreferrer">
             MongoDB Database Tools
-          </a>{' '}
-          on the server.
+          </a>
+          , if MongoDB is already there).
         </div>
       )}
       {data && !data.scheduler && <div className="alert alert-info">Scheduled backups are turned off in the configuration (<code>backups.scheduler</code>). Plans only run when you click.</div>}

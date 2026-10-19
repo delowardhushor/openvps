@@ -134,6 +134,20 @@ certificates keep renewing even when OpenVPS is stopped or removed.
 The agent never takes a command string: `tar`, `mongodump` and `mongorestore` run with fixed
 arguments built from validated values.
 
+## MongoDB browser (v0.5)
+
+Browsing runs in the panel (unprivileged), not in the agent: it needs no root and the panel
+already holds the sealed connection strings.
+
+- `mongo/bson.ts`: BSON codec with typed values (Int32/Int64/Double/Decimal128/ObjectId/...) and
+  Extended JSON output; `mongo/query-lang.ts`: parser for the filter/sort/projection boxes
+  (shell syntax, helpers, Extended JSON; never evaluates code; refuses `$where`/`$function`).
+- `mongo/uri.ts`, `mongo/scram.ts`, `mongo/client.ts`: connection strings (`mongodb+srv` via DNS),
+  SCRAM-SHA-256/SHA-1 (tested against the RFC 7677 vector), OP_MSG over TCP/TLS, one request at a
+  time per connection. `mongo/pool.ts` keeps one connection per saved connection for 60 s.
+- `mongo/browse.ts`: the complete, read-only command list. `mongo-store.ts` (sealed strings),
+  `routes/mongo.ts` (HTTP API under `/api/mongo`), web `pages/DatabasesPages.tsx`.
+
 ## Request lifecycle
 
 1. Security headers are set on every response (CSP, frame denial, HSTS over TLS).

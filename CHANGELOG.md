@@ -7,6 +7,21 @@ breaking changes; they will always be called out here.
 
 ## [Unreleased]
 
+## [0.5.0] — MongoDB browser and automatic MongoDB install
+
+### Added
+- **Databases page: MongoDB browser** (read-only). Save connections (strings sealed at rest), then
+  browse databases, collections and documents like Compass: shell-style filter/sort/projection
+  (`ObjectId("…")`, `ISODate("…")`, `/regex/i`, Extended JSON), colour-coded BSON types, list and
+  table views, paging with totals, indexes and sizes. The MongoDB wire protocol, BSON and SCRAM
+  login are implemented in-house (no npm dependency). Server-side JavaScript filters are refused;
+  queries are time-limited. New table `mongo_connections` (migration 5). See docs/databases.md.
+- `openvps provision` (and so install and upgrade) now installs MongoDB Community Edition 8.0
+  from MongoDB's official apt repository when MongoDB is not on the server, or only the MongoDB
+  Database Tools when a MongoDB server is already there (also when the CPU lacks AVX). Ubuntu
+  22.04/24.04 only. Opt out with `sudo openvps provision --no-mongodb` or `OPENVPS_SKIP_MONGODB=1`.
+  A freshly installed MongoDB listens on localhost only and has no users; see docs/backups.md.
+
 ## [0.4.0] — Phase 4: Backups
 
 ### Added
@@ -136,7 +151,8 @@ doesn't know about the new services; later upgrades run it automatically.
 - Versioned SQLite schema migrations.
 - Documentation, CI workflow, release workflow and issue templates.
 
-[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/delowardhushor/openvps/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.5.0
 [0.4.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.4.0
 [0.2.1]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.1
 [0.2.0]: https://github.com/delowardhushor/openvps/releases/tag/v0.2.0

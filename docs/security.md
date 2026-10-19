@@ -108,6 +108,14 @@ through a private `0600` file (never argv), and scrubbed from errors, logs and t
 Storage endpoints must be `https://` unless they are on a private network. Local backups are
 `root`-only. A restore needs the plan name typed and shows overwrite warnings first.
 
+**MongoDB browser.** Connection strings are sealed at rest (AES-256-GCM, like app secrets) and
+never returned; errors are scrubbed of the password. The browser only sends a fixed list of read
+commands and refuses filters that execute JavaScript on the server (`$where`, `$function`,
+`$accumulator`), caps page size and query time, and truncates huge values. Use a MongoDB user with
+the `read` role so the panel cannot change data even if a bug let it try. Connections are made by
+the panel itself, so anyone with panel access can make it connect to any host the server can
+reach (including internal ones); there is one admin role today.
+
 ## Known limitations (planned)
 
 - Backups are not encrypted by OpenVPS (use provider-side encryption); the storage bucket is trusted

@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AppsPage } from './pages/AppsPage';
 import { AppDetailPage, NewAppPage } from './pages/AppDetailPages';
 import { CertificatesPage, NewSitePage, SiteDetailPage, SitesPage } from './pages/SitesPages';
+import { ConnectionFormPage, DatabasesPage, ExplorerPage } from './pages/DatabasesPages';
 import { BackupsPage, DestinationFormPage, PlanDetailPage, PlanFormPage } from './pages/BackupsPages';
 
 type State =
@@ -127,6 +128,22 @@ function Page({ path, user, onHost, navigate }: { path: string; user: User; onHo
   if (path === '/backups/destinations/new') return <DestinationFormPage key={path} navigate={navigate} />;
   const bd = /^\/backups\/destinations\/([a-z][a-z0-9-]*)$/.exec(path);
   if (bd) return <DestinationFormPage key={path} name={bd[1]!} navigate={navigate} />;
+  if (path === '/databases' || path === '/databases/') return <DatabasesPage navigate={navigate} />;
+  if (path === '/databases/connections/new') return <ConnectionFormPage key={path} navigate={navigate} />;
+  const dc = /^\/databases\/connections\/(\d+)\/edit$/.exec(path);
+  if (dc) return <ConnectionFormPage key={path} id={Number(dc[1])} navigate={navigate} />;
+  const dx = /^\/databases\/(\d+)(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/.exec(path);
+  if (dx) {
+    const part = (s: string | undefined): string | null => {
+      if (!s) return null;
+      try {
+        return decodeURIComponent(s);
+      } catch {
+        return s;
+      }
+    };
+    return <ExplorerPage key={dx[1]} id={Number(dx[1])} db={part(dx[2])} coll={part(dx[3])} navigate={navigate} />;
+  }
   return (
     <div className="card empty">
       <h1>Page not found</h1>
